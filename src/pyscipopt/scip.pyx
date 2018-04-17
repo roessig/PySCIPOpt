@@ -1224,6 +1224,17 @@ cdef class Model:
         PY_SCIP_CALL(SCIPaddCons(self._scip, scip_cons))
         return Constraint.create(scip_cons)
 
+
+    def addConsBoundDisjunction(self, name="BoundDisjunctionCons", initial=True, separate=True, enforce=True, check=True,
+                propagate=True, local=False, dynamic=False,
+                removable=False, stickingatnode=False)
+        """Add a bound disjunction constraint. By Ansgar"""
+
+        PY_SCIP_CALL(SCIPcreateConsBounddisunction(self._scip, &scip_cons, str_conversion(name), 0, NULL,
+                                                  SCIP_BOUNDTYPE __BOUNDTYPE, SCIP_REal __BOUNDS, initial,
+                        separate, enforce, check, propagate, local, SCIP_BOOL __MODIFIABLE, dynamic, removable,
+                        stickingatnode))
+
     def addConsCardinality(self, consvars, cardval, indvars=None, weights=None, name="CardinalityCons",
                 initial=True, separate=True, enforce=True, check=True,
                 propagate=True, local=False, dynamic=False,
