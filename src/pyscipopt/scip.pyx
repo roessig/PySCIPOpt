@@ -1225,15 +1225,48 @@ cdef class Model:
         return Constraint.create(scip_cons)
 
 
-    def addConsBoundDisjunction(self, name="BoundDisjunctionCons", initial=True, separate=True, enforce=True, check=True,
-                propagate=True, local=False, dynamic=False,
-                removable=False, stickingatnode=False)
-        """Add a bound disjunction constraint. By Ansgar"""
+    def addConsBoundDisjunction(self, vars, bound_types, bounds, name="BoundDisjunctionCons", initial=True, separate=True, enforce=True, check=True,
+                propagate=True, local=False, modifiable=False, dynamic=False,
+                removable=False, stickingatnode=False):
+        """Add a bound disjunction constraint. By Ansgar
 
-        PY_SCIP_CALL(SCIPcreateConsBounddisunction(self._scip, &scip_cons, str_conversion(name), 0, NULL,
-                                                  SCIP_BOUNDTYPE __BOUNDTYPE, SCIP_REal __BOUNDS, initial,
-                        separate, enforce, check, propagate, local, SCIP_BOOL __MODIFIABLE, dynamic, removable,
+        :param vars: list of variables that shall be included
+        :param bound_types: list of str, where "lb" for lower bound, "ub" for upperbound
+        :param bounds: list of float, the bound values, it must hold len(bounds) == len(bound_types) == len(vars)
+        """
+
+        assert len(vars) == len(bound_types) == len(bounds)
+
+        cdef SCIP_CONS* scip_cons
+        nvars = len(vars)
+        vars_array = <SCIP_VAR**> malloc(nvars * sizeof(SCIP_VAR*))
+        bound_types_array = <SCIP_BOUNDTYPE*> malloc(nvars * sizeof(SCIP_BOUNDTYPE))
+        bounds_array = <SCIP_Real*> malloc(nvars * sizeof(SCIP_Real))
+
+        for i in range(nvars):
+            vars_array[i] = (<Variable>vars[i]).var
+            if bound_types[i] == "lb":
+                bound_types_array[i] = SCIP_BOUNDTYPE_LOWER
+            if bound_types[i] == "ub":
+                bound_types_array[i] = SCIP_BOUNDTYPE_UPPER
+            bounds_array[i] = <SCIP_Real>bounds[i]
+
+        # SCIP_BOUNDTYPE is a typedef for SCIP_BoundType enum with entries SCIP_BOUNDTYPE_LOWER, SCIP_BOUNDTYPE_UPPER
+        PY_SCIP_CALL(SCIPcreateConsBounddisjunction(self._scip, &scip_cons, str_conversion(name), nvars, vars_array,
+                                                  bound_types_array, bounds_array, initial,
+                        separate, enforce, check, propagate, local, modifiable, dynamic, removable,
                         stickingatnode))
+
+        free(vars_array)
+        free(bound_types_array)
+        free(bounds_array)
+
+        PY_SCIP_CALL(SCIPaddCons(self._scip, scip_cons))
+        pyCons = Constraint.create(scip_cons)
+        PY_SCIP_CALL(SCIPreleaseCons(self._scip, &scip_cons))
+
+        return pyCons
+
 
     def addConsCardinality(self, consvars, cardval, indvars=None, weights=None, name="CardinalityCons",
                 initial=True, separate=True, enforce=True, check=True,

@@ -1010,6 +1010,25 @@ cdef extern from "scip/cons_sos2.h":
                                    SCIP_CONS* cons,
                                    SCIP_VAR* var)
 
+cdef extern from "scip/cons_bounddisjunction.h":
+    SCIP_RETCODE SCIPcreateConsBounddisjunction(SCIP* scip,
+                                    SCIP_CONS** cons,
+                                    const char* name,
+                                    int nvars,
+                                    SCIP_VAR** vars,
+                                    SCIP_BOUNDTYPE* boundtypes,
+                                    SCIP_Real* bounds,
+                                    SCIP_Bool initial,
+                                    SCIP_Bool separate,
+                                    SCIP_Bool enforce,
+                                    SCIP_Bool check,
+                                    SCIP_Bool propagate,
+                                    SCIP_Bool local,
+                                    SCIP_Bool modifiable,
+                                    SCIP_Bool dynamic,
+                                    SCIP_Bool removable,
+                                    SCIP_Bool stickingatnode)
+
 cdef extern from "blockmemshell/memory.h":
     void BMScheckEmptyMemory()
     long long BMSgetMemoryUsed()
