@@ -40,11 +40,11 @@ cdef class Conshdlr:
     def conssepasol(self, constraints, nusefulconss, solution):
         return {}
 
-    def consenfolp(self, solution, constraints, nusefulconss, solinfeasible):
+    def consenfolp(self, constraints, nusefulconss, solinfeasible):
         print("python error in consenfolp: this method needs to be implemented")
         return {}
 
-    def consenforelax(self, constraints, nusefulconss, solinfeasible):
+    def consenforelax(self, solution, constraints, nusefulconss, solinfeasible):
         print("python error in consenforelax: this method needs to be implemented")
         return {}
 
