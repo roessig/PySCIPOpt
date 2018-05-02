@@ -599,6 +599,13 @@ cdef class Model:
 
         return quality
 
+    # Enable Reoptimization
+    def enableReoptimization(self):
+        PY_SCIP_CALL(SCIPenableReoptimization(self._scip, True))
+
+    def isReoptEnabled(self):
+        return PY_SCIP_CALL(SCIPisReoptEnabled(self._scip))
+
     # Objective function
 
     def setMinimize(self):
