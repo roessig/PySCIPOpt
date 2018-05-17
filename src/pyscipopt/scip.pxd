@@ -509,6 +509,10 @@ cdef extern from "scip/scip.h":
     SCIP_Real SCIPvarGetObj(SCIP_VAR* var)
     SCIP_Real SCIPvarGetLPSol(SCIP_VAR* var)
 
+    SCIP_RETCODE SCIPmarkDoNotMultaggrVar(SCIP* scip, SCIP_VAR* var)
+    SCIP_VAR** SCIPgetFixedVars(SCIP* scip)
+    int SCIPgetNFixedVars(SCIP* scip)
+
     # Constraint Methods
     SCIP_RETCODE SCIPcaptureCons(SCIP* scip, SCIP_CONS* cons)
     SCIP_RETCODE SCIPreleaseCons(SCIP* scip, SCIP_CONS** cons)

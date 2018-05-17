@@ -109,9 +109,10 @@ cdef SCIP_RETCODE PyPropPresol (SCIP* scip, SCIP_PROP* prop, int nrounds, SCIP_P
     result_dict["nchgcoefs"]    = nchgcoefs[0]
     result_dict["nchgsides"]    = nchgsides[0]
     result_dict["result"]       = result[0]
-    PyProp.proppresol(nrounds, presoltiming,
-                      nnewfixedvars, nnewaggrvars, nnewchgvartypes, nnewchgbds, nnewholes,
-                      nnewdelconss, nnewaddconss, nnewupgdconss, nnewchgcoefs, nnewchgsides, result_dict)
+    PyProp.proppresol(nrounds, presoltiming, result_dict)
+    #PyProp.proppresol(nrounds, presoltiming,
+     #                 nnewfixedvars, nnewaggrvars, nnewchgvartypes, nnewchgbds, nnewholes,
+      #                nnewdelconss, nnewaddconss, nnewupgdconss, nnewchgcoefs, nnewchgsides, result_dict)
     result[0]       = result_dict["result"]
     nfixedvars[0]   = result_dict["nfixedvars"]
     naggrvars[0]    = result_dict["naggrvars"]

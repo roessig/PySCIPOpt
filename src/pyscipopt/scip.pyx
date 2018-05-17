@@ -869,12 +869,15 @@ cdef class Model:
         if infeasible:
             print('could not change variable type of variable %s' % var)
 
-    def getVars(self, transformed=False):
+    def getVars(self, transformed=False, fixed=False):
         """Retrieve all variables.
 
         :param transformed: get transformed variables instead of original (Default value = False)
+        :param fixed: get all fixed and aggregated variables instead of original
+        Only one of transformed and fixed may be true.
 
         """
+        assert not all((transformed, fixed))
         cdef SCIP_VAR** _vars
         cdef SCIP_VAR* _var
         cdef int _nvars
@@ -883,11 +886,16 @@ cdef class Model:
         if transformed:
             _vars = SCIPgetVars(self._scip)
             _nvars = SCIPgetNVars(self._scip)
+        elif fixed:
+            _vars = SCIPgetFixedVars(self._scip)
+            _nvars = SCIPgetNFixedVars(self._scip)
         else:
             _vars = SCIPgetOrigVars(self._scip)
             _nvars = SCIPgetNOrigVars(self._scip)
 
         return [Variable.create(_vars[i]) for i in range(_nvars)]
+
+
 
     # Constraint functions
     def addCons(self, cons, name='', initial=True, separate=True,
@@ -1231,6 +1239,10 @@ cdef class Model:
         PY_SCIP_CALL(SCIPaddCons(self._scip, scip_cons))
         return Constraint.create(scip_cons)
 
+
+    def markDoNotMultaggrVar(self, var):
+
+        PY_SCIP_CALL(SCIPmarkDoNotMultaggrVar(self._scip, (<Variable>var).var))
 
     def addConsBoundDisjunction(self, vars, bound_types, bounds, name="BoundDisjunctionCons", initial=True, separate=True, enforce=True, check=True,
                 propagate=True, local=False, modifiable=False, dynamic=False,
@@ -1935,11 +1947,12 @@ cdef class Model:
         sepa.model = <Model>weakref.proxy(self)
         Py_INCREF(sepa)
 
+
     def includeProp(self, Prop prop, name, desc, presolpriority, presolmaxrounds,
                     proptiming, presoltiming=SCIP_PRESOLTIMING_FAST, priority=1, freq=1, delay=True):
         """Include a propagator.
 
-        :param Prop prop: propagator
+        :param Prop prop:
         :param name: name of propagator
         :param desc: description of propagator
         :param presolpriority: presolving priority of the propgator (>= 0: before, < 0: after constraint handlers)
