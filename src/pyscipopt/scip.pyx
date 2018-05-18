@@ -2239,12 +2239,47 @@ cdef class Model:
         nam = str_conversion(name)
         des = str_conversion(desc)
         PY_SCIP_CALL(SCIPincludeBranchrule(self._scip, nam, des,
-                                          maxdepth, maxdepth, maxbounddist,
+                                          priority, maxdepth, maxbounddist,
                                           PyBranchruleCopy, PyBranchruleFree, PyBranchruleInit, PyBranchruleExit,
                                           PyBranchruleInitsol, PyBranchruleExitsol, PyBranchruleExeclp, PyBranchruleExecext,
                                           PyBranchruleExecps, <SCIP_BRANCHRULEDATA*> branchrule))
         branchrule.model = <Model>weakref.proxy(self)
         Py_INCREF(branchrule)
+
+    def getLPBranchCands(self):
+        """gets branching candidates for LP solution branching (fractional variables) along with solution values,
+        fractionalities, and number of branching candidates; The number of branching candidates does NOT account
+        for fractional implicit integer variables which should not be used for branching decisions. Fractional
+        implicit integer variables are stored at the positions *nlpcands to *nlpcands + *nfracimplvars - 1
+        branching rules should always select the branching candidate among the first npriolpcands of the candidate list
+
+        Returns:
+            lpcands	pointer to store the array of LP branching candidates, or NULL
+            lpcandssol	pointer to store the array of LP candidate solution values, or NULL
+            lpcandsfrac	pointer to store the array of LP candidate fractionalities, or NULL
+            nlpcands	pointer to store the number of LP branching candidates, or NULL
+            npriolpcands	pointer to store the number of candidates with maximal priority, or NULL
+            nfracimplvars	pointer to store the number of fractional implicit integer variables, or NULL
+        """
+
+        cdef int ncands
+        cdef int nlpcands
+        cdef int npriolpcands
+        cdef int nfracimplvarscalled
+
+        ncands = SCIPgetNLPBranchCands(self._scip)
+
+        cdef SCIP_VAR** lpcands = <SCIP_VAR**> malloc(ncands * sizeof(SCIP_VAR*))
+        cdef SCIP_Real* lpcandssol = <SCIP_Real*> malloc(ncands * sizeof(SCIP_Real))
+        cdef SCIP_Real* lpcandsfrac = <SCIP_Real*> malloc(ncands * sizeof(SCIP_Real))
+
+        PY_SCIP_CALL(SCIPgetLPBranchCands(self._scip, &lpcands, &lpcandssol, &lpcandsfrac,
+                                          &nlpcands, &npriolpcands, &nfracimplvars))
+
+        return ([Variable.create(lpcands[i]) for i in range(ncands)], [lpcandssol[i] for i in range(ncands)],
+                [lpcandsfrac[i] for i in range(ncands)], nlpcands, npriolpcands, nfracimplvars)
+
+
 
     # Solution functions
 

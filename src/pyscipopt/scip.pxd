@@ -844,6 +844,15 @@ cdef extern from "scip/scip.h":
                                        SCIP_BRANCHRULEDATA* branchruledata)
     SCIP_BRANCHRULEDATA* SCIPbranchruleGetData(SCIP_BRANCHRULE* branchrule)
 
+    SCIP_RETCODE SCIPgetNLPBranchCands(SCIP* scip)
+    SCIP_RETCODE SCIPgetLPBranchCands(SCIP* scip,
+                                        SCIP_VAR***  lpcands,
+                                        SCIP_Real**  lpcandssol,
+                                        SCIP_Real**  lpcandsfrac,
+                                        int*  	nlpcands,
+                                        int*  	npriolpcands,
+                                        int*  	nfracimplvars)
+
     # Numerical Methods
     SCIP_Real SCIPinfinity(SCIP* scip)
     SCIP_Real SCIPfrac(SCIP* scip, SCIP_Real val)
