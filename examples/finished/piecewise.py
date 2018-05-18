@@ -295,7 +295,10 @@ if __name__ == "__main__":
 
     A = model.addCons(3*X + 4*Y <= 250, "A")
     B = model.addCons(7*X - 2*Y + 3*u == 170, "B")
+    for i in range(10000):
+        model.addCons(3*X <= 100 + i)
     model.setObjective(2*X + 15*Y + 5*u, "maximize")
+    model.setRealParam("limits/time", 0.01)
     model.optimize()
     print("X:",model.getVal(X))
     print("Y:",model.getVal(Y))

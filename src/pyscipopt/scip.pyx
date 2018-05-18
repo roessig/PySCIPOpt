@@ -2265,7 +2265,7 @@ cdef class Model:
         cdef int ncands
         cdef int nlpcands
         cdef int npriolpcands
-        cdef int nfracimplvarscalled
+        cdef int nfracimplvars
 
         ncands = SCIPgetNLPBranchCands(self._scip)
 
@@ -2279,6 +2279,17 @@ cdef class Model:
         return ([Variable.create(lpcands[i]) for i in range(ncands)], [lpcandssol[i] for i in range(ncands)],
                 [lpcandsfrac[i] for i in range(ncands)], nlpcands, npriolpcands, nfracimplvars)
 
+
+    def branchVar(self, variable):
+        """Branch on a non-continuous variable."""
+
+        cdef SCIP_NODE* downchild = <SCIP_NODE*> malloc(sizeof(SCIP_NODE))
+        cdef SCIP_NODE* eqchild = <SCIP_NODE*> malloc(sizeof(SCIP_NODE))
+        cdef SCIP_NODE* upchild = <SCIP_NODE*> malloc(sizeof(SCIP_NODE))
+
+        PY_SCIP_CALL(SCIPbranchVar(self._scip, (<Variable>variable).var, &downchild, &eqchild, &upchild))
+
+        return (Node.create(downchild), Node.create(eqchild), Node.create(upchild))
 
 
     # Solution functions

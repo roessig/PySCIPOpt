@@ -853,6 +853,12 @@ cdef extern from "scip/scip.h":
                                         int*  	npriolpcands,
                                         int*  	nfracimplvars)
 
+    SCIP_RETCODE SCIPbranchVar(SCIP* scip,
+                                SCIP_VAR* var,
+                                SCIP_NODE**  downchild,
+                                SCIP_NODE**  eqchild,
+                                SCIP_NODE**  upchild)
+
     # Numerical Methods
     SCIP_Real SCIPinfinity(SCIP* scip)
     SCIP_Real SCIPfrac(SCIP* scip, SCIP_Real val)
