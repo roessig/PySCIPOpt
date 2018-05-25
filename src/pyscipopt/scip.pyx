@@ -187,6 +187,7 @@ def PY_SCIP_CALL(SCIP_RETCODE rc):
     if rc == SCIP_OKAY:
         pass
     elif rc == SCIP_ERROR:
+
         raise Exception('SCIP: unspecified error!')
     elif rc == SCIP_NOMEMORY:
         raise MemoryError('SCIP: insufficient memory error!')
@@ -1117,7 +1118,7 @@ cdef class Model:
     def addCons(self, cons, name='', initial=True, separate=True,
                 enforce=True, check=True, propagate=True, local=False,
                 modifiable=False, dynamic=False, removable=False,
-                stickingatnode=False):
+                stickingatnode=False, Node node=None, Node valid_node=None):
         """Add a linear or quadratic constraint.
 
         :param cons: list of coefficients
@@ -1177,7 +1178,12 @@ cdef class Model:
             var = <Variable>key[0]
             PY_SCIP_CALL(SCIPaddCoefLinear(self._scip, scip_cons, var.var, <SCIP_Real>coeff))
 
-        PY_SCIP_CALL(SCIPaddCons(self._scip, scip_cons))
+        if not "node" in kwargs:
+            PY_SCIP_CALL(SCIPaddCons(self._scip, scip_cons))
+        else:
+            # add cons at a node, valid_node is set to NULL
+            PY_SCIP_CALL(SCIPaddConsNode(self._scip, (<Node>kwargs["node"]).node, scip_cons, NULL))
+
         PyCons = Constraint.create(scip_cons)
         PY_SCIP_CALL(SCIPreleaseCons(self._scip, &scip_cons))
 
@@ -2291,6 +2297,9 @@ cdef class Model:
 
         return (Node.create(downchild), Node.create(eqchild), Node.create(upchild))
 
+    #def addConsNode(self, node, cons, valid_node=None):
+     #   """Add a constraint to a certain node."""
+      #  PY_SCIP_CALL(SCIPaddConsNode(self._scip, &node.node, ))
 
     # Solution functions
 

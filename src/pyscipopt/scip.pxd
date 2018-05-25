@@ -859,6 +859,11 @@ cdef extern from "scip/scip.h":
                                 SCIP_NODE**  eqchild,
                                 SCIP_NODE**  upchild)
 
+    SCIP_RETCODE SCIPaddConsNode(SCIP* scip,
+		                        SCIP_NODE*  node,
+		                        SCIP_CONS*  cons,
+		                        SCIP_NODE*  validnode)
+
     # Numerical Methods
     SCIP_Real SCIPinfinity(SCIP* scip)
     SCIP_Real SCIPfrac(SCIP* scip, SCIP_Real val)
