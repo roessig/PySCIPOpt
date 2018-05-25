@@ -1146,7 +1146,7 @@ cdef class Model:
                       propagate=propagate, local=local,
                       modifiable=modifiable, dynamic=dynamic,
                       removable=removable,
-                      stickingatnode=stickingatnode)
+                      stickingatnode=stickingatnode, node=node, valid_node=valid_node)
         kwargs['lhs'] = -SCIPinfinity(self._scip) if cons.lhs is None else cons.lhs
         kwargs['rhs'] =  SCIPinfinity(self._scip) if cons.rhs is None else cons.rhs
 
@@ -1178,10 +1178,12 @@ cdef class Model:
             var = <Variable>key[0]
             PY_SCIP_CALL(SCIPaddCoefLinear(self._scip, scip_cons, var.var, <SCIP_Real>coeff))
 
-        if not "node" in kwargs:
+        if kwargs["node"] is None:
             PY_SCIP_CALL(SCIPaddCons(self._scip, scip_cons))
+            print("add cons globally")
         else:
             # add cons at a node, valid_node is set to NULL
+            print("add cons to node", kwargs["node"])
             PY_SCIP_CALL(SCIPaddConsNode(self._scip, (<Node>kwargs["node"]).node, scip_cons, NULL))
 
         PyCons = Constraint.create(scip_cons)
