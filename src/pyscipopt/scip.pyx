@@ -394,6 +394,18 @@ cdef class Node:
         """Retrieve number of added constraints at this node"""
         return SCIPnodeGetNAddedConss(self.node)
 
+    def getAddedConss(self):
+        """Retrieve all constraints added at this node."""
+        cdef int _nconss
+        _nconss = SCIPnodeGetNAddedConss(self.node)
+
+        cdef SCIP_CONS** _conss = <SCIP_CONS**> malloc(_nconss * sizeof(SCIP_CONS*))
+
+        cdef int _nconss_new
+        SCIPnodeGetAddedConss(self.node, _conss, &_nconss_new, _nconss)
+        return [Constraint.create(_conss[i]) for i in range(_nconss_new)]
+
+
     def isActive(self):
         """Is the node in the path to the current node?"""
         return SCIPnodeIsActive(self.node)
@@ -530,6 +542,10 @@ cdef class Constraint:
     def isLocal(self):
         """Retrieve True if constraint is only locally valid or not added to any (sub)problem"""
         return SCIPconsIsLocal(self.cons)
+
+    def isGlobal(self):
+        """returns TRUE iff constraint is globally valid"""
+        return SCIPconsIsGlobal(self.cons)
 
     def isModifiable(self):
         """Retrieve True if constraint is modifiable (subject to column generation)"""
@@ -1180,11 +1196,13 @@ cdef class Model:
 
         if kwargs["node"] is None:
             PY_SCIP_CALL(SCIPaddCons(self._scip, scip_cons))
-            print("add cons globally")
+            #print("add cons globally")
         else:
             # add cons at a node, valid_node is set to NULL
-            print("add cons to node", kwargs["node"])
+            #print("add cons to node", kwargs["node"])
             PY_SCIP_CALL(SCIPaddConsNode(self._scip, (<Node>kwargs["node"]).node, scip_cons, NULL))
+            # maybe should use this function for local constraints
+            #PY_SCIP_CALL(SCIPaddConsLocal(self._scip, scip_cons, NULL))
 
         PyCons = Constraint.create(scip_cons)
         PY_SCIP_CALL(SCIPreleaseCons(self._scip, &scip_cons))
@@ -1906,7 +1924,7 @@ cdef class Model:
     def getConss(self):
         """Retrieve all constraints."""
         cdef SCIP_CONS** _conss
-        cdef SCIP_CONS* _cons
+        # cdef SCIP_CONS* _cons # is not used
         cdef int _nconss
         conss = []
 

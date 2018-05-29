@@ -553,6 +553,7 @@ cdef extern from "scip/scip.h":
     SCIP_Bool SCIPconsIsChecked(SCIP_CONS* cons)
     SCIP_Bool SCIPconsIsPropagated(SCIP_CONS* cons)
     SCIP_Bool SCIPconsIsLocal(SCIP_CONS* cons)
+    SCIP_Bool SCIPconsIsGlobal(SCIP_CONS* cons)
     SCIP_Bool SCIPconsIsModifiable(SCIP_CONS* cons)
     SCIP_Bool SCIPconsIsDynamic(SCIP_CONS* cons)
     SCIP_Bool SCIPconsIsRemovable(SCIP_CONS* cons)
@@ -864,6 +865,10 @@ cdef extern from "scip/scip.h":
 		                        SCIP_CONS*  cons,
 		                        SCIP_NODE*  validnode)
 
+    SCIP_RETCODE SCIPaddConsLocal(SCIP* scip,
+		                        SCIP_CONS*  cons,
+		                        SCIP_NODE*  validnode)
+
     # Numerical Methods
     SCIP_Real SCIPinfinity(SCIP* scip)
     SCIP_Real SCIPfrac(SCIP* scip, SCIP_Real val)
@@ -941,6 +946,10 @@ cdef extern from "scip/scip.h":
 
 cdef extern from "scip/tree.h":
     int SCIPnodeGetNAddedConss(SCIP_NODE* node)
+    void SCIPnodeGetAddedConss(SCIP_NODE* node,
+		                    SCIP_CONS** addedconss,
+		                    int* naddedconss,
+		                    int  addedconsssize)
 
 cdef extern from "scip/scipdefplugins.h":
     SCIP_RETCODE SCIPincludeDefaultPlugins(SCIP* scip)
