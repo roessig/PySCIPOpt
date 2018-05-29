@@ -981,6 +981,51 @@ cdef class Model:
            ub = SCIPinfinity(self._scip)
         PY_SCIP_CALL(SCIPchgVarUb(self._scip, var.var, ub))
 
+
+    def chgVarLbGlobal(self, Variable var, lb):
+        """Changes the global lower bound of the specified variable.
+
+        :param Variable var: variable to change bound of
+        :param lb: new lower bound (set to None for -infinity)
+
+        """
+        if lb is None:
+           lb = -SCIPinfinity(self._scip)
+        PY_SCIP_CALL(SCIPchgVarLbGlobal(self._scip, var.var, lb))
+
+    def chgVarUbGlobal(self, Variable var, ub):
+        """Changes the global upper bound of the specified variable.
+
+        :param Variable var: variable to change bound of
+        :param ub: new upper bound (set to None for +infinity)
+
+        """
+        if ub is None:
+           ub = SCIPinfinity(self._scip)
+        PY_SCIP_CALL(SCIPchgVarUbGlobal(self._scip, var.var, ub))
+
+    def chgVarLbNode(self, Node node, Variable var, lb):
+        """Changes the lower bound of the specified variable at the given node.
+
+        :param Variable var: variable to change bound of
+        :param lb: new lower bound (set to None for -infinity)
+
+        """
+        if lb is None:
+           lb = -SCIPinfinity(self._scip)
+        PY_SCIP_CALL(SCIPchgVarLbNode(self._scip, (<Node>node).node, var.var, lb))
+
+    def chgVarUbNode(self, Node node, Variable var, ub):
+        """Changes the upper bound of the specified variable at the given node.
+
+        :param Variable var: variable to change bound of
+        :param ub: new upper bound (set to None for +infinity)
+
+        """
+        if ub is None:
+           ub = SCIPinfinity(self._scip)
+        PY_SCIP_CALL(SCIPchgVarUbNode(self._scip, (<Node>node).node, var.var, ub))
+
     def chgVarType(self, Variable var, vtype):
         """Changes the type of a variable
 
