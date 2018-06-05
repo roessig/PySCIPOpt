@@ -865,6 +865,13 @@ cdef extern from "scip/scip.h":
                                 SCIP_NODE**  eqchild,
                                 SCIP_NODE**  upchild)
 
+    SCIP_RETCODE SCIPbranchVarVal(SCIP* scip,
+                                SCIP_VAR* var,
+                                SCIP_Real val,
+                                SCIP_NODE** downchild,
+                                SCIP_NODE**  eqchild,
+                                SCIP_NODE** upchild)
+
     SCIP_RETCODE SCIPaddConsNode(SCIP* scip,
 		                        SCIP_NODE*  node,
 		                        SCIP_CONS*  cons,

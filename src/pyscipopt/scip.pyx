@@ -2440,11 +2440,20 @@ cdef class Model:
 
         PY_SCIP_CALL(SCIPbranchVar(self._scip, (<Variable>variable).var, &downchild, &eqchild, &upchild))
 
-        return (Node.create(downchild), Node.create(eqchild), Node.create(upchild))
+        return Node.create(downchild), Node.create(eqchild), Node.create(upchild)
 
-    #def addConsNode(self, node, cons, valid_node=None):
-     #   """Add a constraint to a certain node."""
-      #  PY_SCIP_CALL(SCIPaddConsNode(self._scip, &node.node, ))
+
+    def branchVarVal(self, variable, value):
+        """Branches on variable using a value which separates the domain of the variable."""
+
+        cdef SCIP_NODE* downchild = <SCIP_NODE*> malloc(sizeof(SCIP_NODE))
+        cdef SCIP_NODE* eqchild = <SCIP_NODE*> malloc(sizeof(SCIP_NODE))
+        cdef SCIP_NODE* upchild = <SCIP_NODE*> malloc(sizeof(SCIP_NODE))
+
+        PY_SCIP_CALL(SCIPbranchVarVal(self._scip, (<Variable>variable).var, value, &downchild, &eqchild, &upchild))
+
+        return Node.create(downchild), Node.create(eqchild), Node.create(upchild)
+
 
     # Solution functions
 
