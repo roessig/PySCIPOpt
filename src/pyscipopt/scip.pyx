@@ -628,6 +628,8 @@ cdef class Model:
 
     def freeTransform(self):
         """Frees all solution process data including presolving and transformed problem, only original problem is kept"""
+
+
         PY_SCIP_CALL(SCIPfreeTransform(self._scip))
 
     def version(self):
@@ -947,6 +949,9 @@ cdef class Model:
         """
         cdef SCIP_VAR* _tvar
         PY_SCIP_CALL(SCIPtransformVar(self._scip, var.var, &_tvar))
+        PY_SCIP_CALL(SCIPreleaseVar(self._scip, &_tvar))
+        PY_SCIP_CALL(SCIPreleaseVar(self._scip, &_tvar))
+
         return Variable.create(_tvar)
 
     def addVarLocks(self, Variable var, nlocksdown, nlocksup):
@@ -1179,7 +1184,7 @@ cdef class Model:
     def addCons(self, cons, name='', initial=True, separate=True,
                 enforce=True, check=True, propagate=True, local=False,
                 modifiable=False, dynamic=False, removable=False,
-                stickingatnode=False, Node node=None, Node valid_node=None):
+                stickingatnode=False, Node node=None, Node valid_node=None, node_trick=False):
         """Add a linear or quadratic constraint.
 
         :param cons: list of coefficients
@@ -1207,7 +1212,7 @@ cdef class Model:
                       propagate=propagate, local=local,
                       modifiable=modifiable, dynamic=dynamic,
                       removable=removable,
-                      stickingatnode=stickingatnode, node=node, valid_node=valid_node)
+                      stickingatnode=stickingatnode, node=node, valid_node=valid_node, node_trick=node_trick)
         kwargs['lhs'] = -SCIPinfinity(self._scip) if cons.lhs is None else cons.lhs
         kwargs['rhs'] =  SCIPinfinity(self._scip) if cons.rhs is None else cons.rhs
 
@@ -1228,26 +1233,46 @@ cdef class Model:
         terms = lincons.expr.terms
 
         cdef SCIP_CONS* scip_cons
+        cdef int nvars = len(terms.items())
+
+        vars_array = <SCIP_VAR**> malloc(nvars * sizeof(SCIP_VAR*))
+        coeffs_array = <SCIP_Real*> malloc(nvars * sizeof(SCIP_Real))
+
+        for i, (key, coeff) in enumerate(terms.items()):
+            vars_array[i] = (<Variable>key[0]).var
+            coeffs_array[i] = <SCIP_Real>coeff
+
         PY_SCIP_CALL(SCIPcreateConsLinear(
-            self._scip, &scip_cons, str_conversion(kwargs['name']), 0, NULL, NULL,
-            kwargs['lhs'], kwargs['rhs'], kwargs['initial'],
-            kwargs['separate'], kwargs['enforce'], kwargs['check'],
-            kwargs['propagate'], kwargs['local'], kwargs['modifiable'],
-            kwargs['dynamic'], kwargs['removable'], kwargs['stickingatnode']))
+        self._scip, &scip_cons, str_conversion(kwargs['name']), nvars, vars_array, coeffs_array,
+             kwargs['lhs'], kwargs['rhs'], kwargs['initial'],
+             kwargs['separate'], kwargs['enforce'], kwargs['check'],
+             kwargs['propagate'], kwargs['local'], kwargs['modifiable'],
+             kwargs['dynamic'], kwargs['removable'], kwargs['stickingatnode']))
 
-        for key, coeff in terms.items():
-            var = <Variable>key[0]
-            PY_SCIP_CALL(SCIPaddCoefLinear(self._scip, scip_cons, var.var, <SCIP_Real>coeff))
+        # PY_SCIP_CALL(SCIPcreateConsLinear(
+        #     self._scip, &scip_cons, str_conversion(kwargs['name']), 0, NULL, NULL,
+        #     kwargs['lhs'], kwargs['rhs'], kwargs['initial'],
+        #     kwargs['separate'], kwargs['enforce'], kwargs['check'],
+        #     kwargs['propagate'], kwargs['local'], kwargs['modifiable'],
+        #     kwargs['dynamic'], kwargs['removable'], kwargs['stickingatnode']))
+        #
+        # for key, coeff in terms.items():
+        #     var = <Variable>key[0]
+        #     PY_SCIP_CALL(SCIPaddCoefLinear(self._scip, scip_cons, var.var, <SCIP_Real>coeff))
 
-        if kwargs["node"] is None:
+        if kwargs["node"] is None and not kwargs["node_trick"]:
             PY_SCIP_CALL(SCIPaddCons(self._scip, scip_cons))
             #print("add cons globally")
-        else:
+        elif not kwargs["node_trick"]:
             # add cons at a node, valid_node is set to NULL
             #print("add cons to node", kwargs["node"])
             PY_SCIP_CALL(SCIPaddConsNode(self._scip, (<Node>kwargs["node"]).node, scip_cons, NULL))
             # maybe should use this function for local constraints
             #PY_SCIP_CALL(SCIPaddConsLocal(self._scip, scip_cons, NULL))
+        else:
+            PY_SCIP_CALL(SCIPaddConsNode(self._scip, NULL, scip_cons, NULL))
+
+
 
         PyCons = Constraint.create(scip_cons)
         PY_SCIP_CALL(SCIPreleaseCons(self._scip, &scip_cons))
