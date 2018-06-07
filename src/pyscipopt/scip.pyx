@@ -912,6 +912,8 @@ cdef class Model:
             ub = SCIPinfinity(self._scip)
         if lb is None:
             lb = -SCIPinfinity(self._scip)
+
+        print("addVar():, before creating var")
         cdef SCIP_VAR* scip_var
         if vtype in ['C', 'CONTINUOUS']:
             PY_SCIP_CALL(SCIPcreateVarBasic(self._scip, &scip_var, cname, lb, ub, obj, SCIP_VARTYPE_CONTINUOUS))
@@ -924,12 +926,17 @@ cdef class Model:
         else:
             raise Warning("unrecognized variable type")
 
+        print("addVar():, before adding var")
+
         if pricedVar:
             PY_SCIP_CALL(SCIPaddPricedVar(self._scip, scip_var, 1.0))
         else:
             PY_SCIP_CALL(SCIPaddVar(self._scip, scip_var))
 
+        print("addVar, before pyvar")
+
         pyVar = Variable.create(scip_var)
+        print("addVar, before release")
         PY_SCIP_CALL(SCIPreleaseVar(self._scip, &scip_var))
         return pyVar
 
