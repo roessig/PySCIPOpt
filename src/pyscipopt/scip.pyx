@@ -993,6 +993,17 @@ cdef class Model:
         PY_SCIP_CALL(SCIPfixVar(self._scip, var.var, val, &infeasible, &fixed))
         return infeasible, fixed
 
+    def delVar(self, Variable var):
+        """Delete a variable.
+
+        :param var: the variable which shall be deleted
+        :return bool, was deleting succesful
+        """
+
+        cdef SCIP_Bool deleted
+        PY_SCIP_CALL(SCIPdelVar(self._scip, var.var, &deleted))
+        return deleted
+
 
     def chgVarLb(self, Variable var, lb):
         """Changes the lower bound of the specified variable.
