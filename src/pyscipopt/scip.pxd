@@ -404,6 +404,15 @@ cdef extern from "scip/scip.h":
     SCIP_STAGE SCIPgetStage(SCIP* scip)
     SCIP_RETCODE SCIPsetProbName(SCIP* scip, char* name)
     const char* SCIPgetProbName(SCIP* scip)
+    SCIP_RETCODE SCIPcopy(SCIP* sourcescip,
+		SCIP*  	targetscip,
+		SCIP_HASHMAP*  	varmap,
+		SCIP_HASHMAP*  	consmap,
+		const char* suffix,
+		SCIP_Bool  global_copy,
+		SCIP_Bool  enablepricing,
+		SCIP_Bool  passmessagehdlr,
+		SCIP_Bool* valid)
 
     # Event Methods
     SCIP_RETCODE SCIPcatchEvent(SCIP* scip,
@@ -497,6 +506,7 @@ cdef extern from "scip/scip.h":
     SCIP_RETCODE SCIPchgVarUbGlobal(SCIP* scip, SCIP_VAR* var, SCIP_Real newbound)
     SCIP_RETCODE SCIPchgVarLbNode(SCIP* scip, SCIP_NODE* node, SCIP_VAR* var, SCIP_Real newbound)
     SCIP_RETCODE SCIPchgVarUbNode(SCIP* scip, SCIP_NODE* node, SCIP_VAR* var, SCIP_Real newbound)
+    SCIP_RETCODE SCIPfixVar(SCIP* scip, SCIP_VAR* var, SCIP_Real fixedval, SCIP_Bool* infeasible, SCIP_Bool* fixed)
 
     SCIP_RETCODE SCIPchgVarType(SCIP* scip, SCIP_VAR* var, SCIP_VARTYPE vartype, SCIP_Bool* infeasible)
     SCIP_RETCODE SCIPcaptureVar(SCIP* scip, SCIP_VAR* var)

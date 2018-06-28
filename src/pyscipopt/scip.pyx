@@ -889,6 +889,21 @@ cdef class Model:
             PY_SCIP_CALL(SCIPwriteOrigProblem(self._scip, fn, ext, False))
         print('wrote problem to file ' + filename)
 
+
+    def copyModel(self, Model new_model, global_copy=True, enablepricing=False, passmessagehdlr=False):
+        """Create a copy of the model
+
+        :param global_copy:
+        :param enablepricing:
+        :param passmessagehdlr:
+        :return: bool, indicating if copying was valid or not
+        """
+        cdef SCIP_Bool valid
+        PY_SCIP_CALL(SCIPcopy(self._scip, new_model._scip, NULL, NULL, "suffix", global_copy,
+                              enablepricing, passmessagehdlr, &valid))
+        return valid
+
+
     # Variable Functions
 
     def addVar(self, name='', vtype='C', lb=0.0, ub=None, obj=0.0, pricedVar = False):
@@ -964,6 +979,20 @@ cdef class Model:
 
         """
         PY_SCIP_CALL(SCIPaddVarLocks(self._scip, var.var, nlocksdown, nlocksup))
+
+    def fixVar(self, Variable var, val):
+        """Fixes the variable var to the value val if possible.
+
+        :param Variable var: variable to fix
+        :param val: float, the fix value
+        :return tuple (infeasible, fixed) of booleans
+        """
+
+        cdef SCIP_Bool infeasible
+        cdef SCIP_Bool fixed
+        PY_SCIP_CALL(SCIPfixVar(self._scip, var.var, val, &infeasible, &fixed))
+        return infeasible, fixed
+
 
     def chgVarLb(self, Variable var, lb):
         """Changes the lower bound of the specified variable.

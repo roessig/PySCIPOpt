@@ -288,7 +288,7 @@ cdef class ExprCons:
         self.expr = expr
         self.lhs = lhs
         self.rhs = rhs
-        assert not (lhs is None and rhs is None)
+        assert not (lhs is None and rhs is None), "lhs or rhs must be set, __init__ in class ExprCons"
         self.normalize()
 
     def normalize(self):
@@ -296,7 +296,7 @@ cdef class ExprCons:
         if isinstance(self.expr, Expr):
             c = self.expr[CONST]
             self.expr -= c
-            assert self.expr[CONST] == 0.0
+            assert self.expr[CONST] == 0.0, "self.expr[CONST] == 0.0, normalize() in class ExprCons"
             self.expr.normalize()
         else:
             assert isinstance(self.expr, GenExpr)
