@@ -1311,9 +1311,8 @@ cdef class Model:
             # maybe should use this function for local constraints
             #PY_SCIP_CALL(SCIPaddConsLocal(self._scip, scip_cons, NULL))
         else:
+            # TODO what is the sense of this ???
             PY_SCIP_CALL(SCIPaddConsNode(self._scip, NULL, scip_cons, NULL))
-
-
 
         PyCons = Constraint.create(scip_cons)
         PY_SCIP_CALL(SCIPreleaseCons(self._scip, &scip_cons))
