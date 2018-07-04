@@ -10,6 +10,7 @@ from libc.stdio cimport fdopen
 
 include "expr.pxi"
 include "lp.pxi"
+include "benders.pxi"
 include "branchrule.pxi"
 include "conshdlr.pxi"
 include "event.pxi"
@@ -20,9 +21,9 @@ include "propagator.pxi"
 include "sepa.pxi"
 
 # recommended SCIP version; major version is required
-MAJOR = 5
+MAJOR = 6
 MINOR = 0
-PATCH = 1
+PATCH = 0
 
 # for external user functions use def; for functions used only inside the interface (starting with _) use cdef
 # todo: check whether this is currently done like this
@@ -187,7 +188,6 @@ def PY_SCIP_CALL(SCIP_RETCODE rc):
     if rc == SCIP_OKAY:
         pass
     elif rc == SCIP_ERROR:
-
         raise Exception('SCIP: unspecified error!')
     elif rc == SCIP_NOMEMORY:
         raise MemoryError('SCIP: insufficient memory error!')
@@ -628,8 +628,6 @@ cdef class Model:
 
     def freeTransform(self):
         """Frees all solution process data including presolving and transformed problem, only original problem is kept"""
-
-
         PY_SCIP_CALL(SCIPfreeTransform(self._scip))
 
     def version(self):
@@ -715,6 +713,18 @@ cdef class Model:
     def isLE(self, val1, val2):
         """returns whether val1 <= val2 + eps"""
         return SCIPisLE(self._scip, val1, val2)
+
+    def isLT(self, val1, val2):
+        """returns whether val1 < val2 - eps"""
+        return SCIPisLT(self._scip, val1, val2)
+
+    def isGE(self, val1, val2):
+        """returns whether val1 >= val2 - eps"""
+        return SCIPisGE(self._scip, val1, val2)
+
+    def isGT(self, val1, val2):
+        """returns whether val1 > val2 + eps"""
+        return SCIPisGT(self._scip, val1, val2)
 
     def getCondition(self, exact=False):
         """Get the current LP's condition number
@@ -907,7 +917,7 @@ cdef class Model:
     # Variable Functions
 
     def addVar(self, name='', vtype='C', lb=0.0, ub=None, obj=0.0, pricedVar = False):
-        """Create a new variable.
+        """Create a new variable. Default variable is non-negative and continuous.
 
         :param name: name of the variable, generic if empty (Default value = '')
         :param vtype: type of the variable (Default value = 'C')
@@ -927,7 +937,6 @@ cdef class Model:
             ub = SCIPinfinity(self._scip)
         if lb is None:
             lb = -SCIPinfinity(self._scip)
-
         cdef SCIP_VAR* scip_var
         if vtype in ['C', 'CONTINUOUS']:
             PY_SCIP_CALL(SCIPcreateVarBasic(self._scip, &scip_var, cname, lb, ub, obj, SCIP_VARTYPE_CONTINUOUS))
@@ -965,9 +974,6 @@ cdef class Model:
         """
         cdef SCIP_VAR* _tvar
         PY_SCIP_CALL(SCIPtransformVar(self._scip, var.var, &_tvar))
-        PY_SCIP_CALL(SCIPreleaseVar(self._scip, &_tvar))
-        PY_SCIP_CALL(SCIPreleaseVar(self._scip, &_tvar))
-
         return Variable.create(_tvar)
 
     def addVarLocks(self, Variable var, nlocksdown, nlocksup):
@@ -1720,6 +1726,44 @@ cdef class Model:
 
         return pyCons
 
+    def addConsXor(self, vars, rhsvar, name="XORcons",
+            initial=True, separate=True, enforce=True, check=True,
+            propagate=True, local=False, modifiable=False, dynamic=False,
+            removable=False, stickingatnode=False):
+        """Add a XOR-constraint.
+        :param vars: list of BINARY variables to be included (operators)
+        :param rhsvar: BOOLEAN value, explicit True, False or bool(obj) is needed (right-hand side)
+        :param name: name of the constraint (Default value = "XORcons")
+        :param initial: should the LP relaxation of constraint be in the initial LP? (Default value = True)
+        :param separate: should the constraint be separated during LP processing? (Default value = True)
+        :param enforce: should the constraint be enforced during node processing? (Default value = True)
+        :param check: should the constraint be checked for feasibility? (Default value = True)
+        :param propagate: should the constraint be propagated during node processing? (Default value = True)
+        :param local: is the constraint only valid locally? (Default value = False)
+        :param modifiable: is the constraint modifiable (subject to column generation)? (Default value = False)
+        :param dynamic: is the constraint subject to aging? (Default value = False)
+        :param removable: should the relaxation be removed from the LP due to aging or cleanup? (Default value = False)
+        :param stickingatnode: should the constraint always be kept at the node where it was added, even if it may be moved to a more global node? (Default value = False)
+        """
+        cdef SCIP_CONS* scip_cons
+
+        nvars = len(vars)
+
+        assert type(rhsvar) is type(bool()), "Provide BOOLEAN value as rhsvar, you gave %s." % type(rhsvar)
+        _vars = <SCIP_VAR**> malloc(len(vars) * sizeof(SCIP_VAR*))
+        for idx, var in enumerate(vars):
+            _vars[idx] = (<Variable>var).var
+
+        PY_SCIP_CALL(SCIPcreateConsXor(self._scip, &scip_cons, str_conversion(name), rhsvar, nvars, _vars,
+            initial, separate, enforce, check, propagate, local, modifiable, dynamic, removable, stickingatnode))
+
+        PY_SCIP_CALL(SCIPaddCons(self._scip, scip_cons))
+        pyCons = Constraint.create(scip_cons)
+        PY_SCIP_CALL(SCIPreleaseCons(self._scip, &scip_cons))
+
+        free(_vars)
+
+        return pyCons
 
     def addConsCardinality(self, consvars, cardval, indvars=None, weights=None, name="CardinalityCons",
                 initial=True, separate=True, enforce=True, check=True,
@@ -2235,6 +2279,87 @@ cdef class Model:
         """Presolve the problem."""
         PY_SCIP_CALL(SCIPpresolve(self._scip))
 
+    # Benders' decomposition methods
+    def initBendersDefault(self, subproblems):
+        """initialises the default Benders' decomposition with a dictionary of subproblems
+
+        Keyword arguments:
+        subproblems -- a single Model instance or dictionary of Model instances
+        """
+        cdef SCIP** subprobs
+
+        # checking whether subproblems is a dictionary
+        if isinstance(subproblems, dict):
+            isdict = True
+            nsubproblems = len(subproblems)
+        else:
+            isdict = False
+            nsubproblems = 1
+
+        # create array of SCIP instances for the subproblems
+        subprobs = <SCIP**> malloc(nsubproblems * sizeof(SCIP*))
+
+        # if subproblems is a dictionary, then the dictionary is turned into a c array
+        if isdict:
+            for idx, subprob in enumerate(subproblems.values()):
+                subprobs[idx] = (<Model>subprob)._scip
+        else:
+            subprobs[0] = (<Model>subproblems)._scip
+
+        # creating the default Benders' decomposition
+        PY_SCIP_CALL(SCIPcreateBendersDefault(self._scip, subprobs, nsubproblems))
+
+        # activating the Benders' decomposition constraint handlers
+        self.setBoolParam("constraints/benderslp/active", True)
+        self.setBoolParam("constraints/benders/active", True)
+        #self.setIntParam("limits/maxorigsol", 0)
+
+    def computeBestSolSubproblems(self):
+        """Solves the subproblems with the best solution to the master problem.
+        Afterwards, the best solution from each subproblem can be queried to get
+        the solution to the original problem.
+
+        If the user wants to resolve the subproblems, they must free them by
+        calling freeBendersSubproblems()
+        """
+        cdef SCIP_BENDERS** _benders
+        cdef SCIP_Bool _infeasible
+        cdef int nbenders
+        cdef int nsubproblems
+
+        solvecip = True
+
+        nbenders = SCIPgetNActiveBenders(self._scip)
+        _benders = SCIPgetBenders(self._scip)
+
+        # solving all subproblems from all Benders' decompositions
+        for i in range(nbenders):
+            nsubproblems = SCIPbendersGetNSubproblems(_benders[i])
+            for j in range(nsubproblems):
+                PY_SCIP_CALL(SCIPsetupBendersSubproblem(self._scip,
+                    _benders[i], self._bestSol.sol, j))
+                PY_SCIP_CALL(SCIPsolveBendersSubproblem(self._scip,
+                    _benders[i], self._bestSol.sol, j, &_infeasible,
+                    SCIP_BENDERSENFOTYPE_CHECK, solvecip, NULL))
+
+    def freeBendersSubproblems(self):
+        """Calls the free subproblem function for the Benders' decomposition.
+        This will free all subproblems for all decompositions.
+        """
+        cdef SCIP_BENDERS** _benders
+        cdef int nbenders
+        cdef int nsubproblems
+
+        nbenders = SCIPgetNActiveBenders(self._scip)
+        _benders = SCIPgetBenders(self._scip)
+
+        # solving all subproblems from all Benders' decompositions
+        for i in range(nbenders):
+            nsubproblems = SCIPbendersGetNSubproblems(_benders[i])
+            for j in range(nsubproblems):
+                PY_SCIP_CALL(SCIPfreeBendersSubproblem(self._scip, _benders[i],
+                    j))
+
     def includeEventhdlr(self, Eventhdlr eventhdlr, name, desc):
         """Include an event handler.
 
@@ -2463,6 +2588,34 @@ cdef class Model:
                                           PyBranchruleExecps, <SCIP_BRANCHRULEDATA*> branchrule))
         branchrule.model = <Model>weakref.proxy(self)
         Py_INCREF(branchrule)
+
+    def includeBenders(self, Benders benders, name, desc, priority=1, cutlp=True, cutpseudo=True, cutrelax=True,
+            shareaux=False):
+        """Include a Benders' decomposition.
+
+        Keyword arguments:
+        benders -- the Benders decomposition
+        name -- the name
+        desc -- the description
+        priority -- priority of the Benders' decomposition
+        cutlp -- should Benders' cuts be generated from LP solutions
+        cutpseudo -- should Benders' cuts be generated from pseudo solutions
+        cutrelax -- should Benders' cuts be generated from relaxation solutions
+        shareaux -- should the Benders' decomposition share the auxiliary variables of the highest priority Benders' decomposition
+        """
+        n = str_conversion(name)
+        d = str_conversion(desc)
+        PY_SCIP_CALL(SCIPincludeBenders(self._scip, n, d,
+                                            priority, cutlp, cutrelax, cutpseudo, shareaux,
+                                            PyBendersCopy, PyBendersFree, PyBendersInit, PyBendersExit, PyBendersInitpre,
+                                            PyBendersExitpre, PyBendersInitsol, PyBendersExitsol, PyBendersGetvar,
+                                            PyBendersCreatesub, PyBendersPresubsolve, PyBendersSolvesubconvex,
+                                            PyBendersSolvesub, PyBendersPostsolve, PyBendersFreesub,
+                                            <SCIP_BENDERSDATA*>benders))
+        cdef SCIP_BENDERS* scip_benders
+        scip_benders = SCIPfindBenders(self._scip, n)
+        benders.model = <Model>weakref.proxy(self)
+        Py_INCREF(benders)
 
     def getLPBranchCands(self):
         """gets branching candidates for LP solution branching (fractional variables) along with solution values,
@@ -2927,7 +3080,8 @@ cdef class Model:
 
         """
         n = str_conversion(name)
-        PY_SCIP_CALL(SCIPsetStringParam(self._scip, n, value))
+        v = str_conversion(value)
+        PY_SCIP_CALL(SCIPsetStringParam(self._scip, n, v))
 
     def setParam(self, name, value):
         """Set a parameter with value in int, bool, real, long, char or str.
