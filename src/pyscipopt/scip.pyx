@@ -2313,6 +2313,8 @@ cdef class Model:
         self.setBoolParam("constraints/benderslp/active", True)
         self.setBoolParam("constraints/benders/active", True)
         #self.setIntParam("limits/maxorigsol", 0)
+        free(subprobs)
+
 
     def computeBestSolSubproblems(self):
         """Solves the subproblems with the best solution to the master problem.
