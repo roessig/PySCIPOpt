@@ -2676,14 +2676,14 @@ cdef class Model:
 
         # TODO should the stuff be freed and how?
         return Node.create(downchild), Node.create(eqchild), Node.create(upchild)
-    #
-    # def createChild(self, nodeselprio, estimate):
-    #     """Create a child node of the focus node."""
-    #
-    #     cdef SCIP_NODE* child = <SCIP_NODE*> malloc(sizeof(SCIP_NODE))
-    #     PY_SCIP_CALL(SCIPcreateChild(self._scip, &child, nodeselprio, estimate))
-    #
-    #     return Node.create(child)
+
+    def createChild(self, nodeselprio, estimate):
+        """Create a child node of the focus node."""
+
+        cdef SCIP_NODE* child = <SCIP_NODE*> malloc(sizeof(SCIP_NODE))
+        PY_SCIP_CALL(SCIPcreateChild(self._scip, &child, nodeselprio, estimate))
+
+        return Node.create(child)
 
     # Solution functions
 

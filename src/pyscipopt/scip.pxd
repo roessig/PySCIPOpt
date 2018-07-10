@@ -506,7 +506,7 @@ cdef extern from "scip/scip.h":
     SCIP_NODETYPE SCIPnodeGetType(SCIP_NODE* node)
     SCIP_Bool SCIPnodeIsActive(SCIP_NODE* node)
     SCIP_Bool SCIPnodeIsPropagatedAgain(SCIP_NODE* node)
-    #SCIP_RETCODE SCIPcreateChild(SCIP* scip, SCIP_NODE** node, SCIP_Real nodeselprio, SCIP_Real estimate)
+    SCIP_RETCODE SCIPcreateChild(SCIP* scip, SCIP_NODE** node, SCIP_Real nodeselprio, SCIP_Real estimate)
 
     # Variable Methods
     SCIP_RETCODE SCIPcreateVarBasic(SCIP* scip,
@@ -559,11 +559,7 @@ cdef extern from "scip/scip.h":
     SCIP_RETCODE SCIPgetLPBInvARow(SCIP* scip, int r, SCIP_Real* binvrow, SCIP_Real* coefs, int* inds, int* ninds)
     SCIP_Bool SCIPisLPSolBasic(SCIP* scip)
     int SCIPgetNLPRows(SCIP* scip)
-    int SCIPgetNLPCols(SCIP* scip)SCIP_RETCODE SCIPcreateChild 	( 	SCIP *  	scip,
-		SCIP_NODE **  	node,
-		SCIP_Real  	nodeselprio,
-		SCIP_Real  	estimate
-	)
+    int SCIPgetNLPCols(SCIP* scip)
 
     # Cutting Plane Methods
     SCIP_RETCODE SCIPaddPoolCut(SCIP* scip, SCIP_ROW* row)
