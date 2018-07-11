@@ -768,6 +768,17 @@ cdef class Model:
         """
         PY_SCIP_CALL(SCIPsetObjlimit(self._scip, objlimit))
 
+    def delObjective(self):
+        """clear existing objective function"""
+        cdef SCIP_VAR** _vars
+        cdef int _nvars
+
+        _vars = SCIPgetOrigVars(self._scip)
+        _nvars = SCIPgetNOrigVars(self._scip)
+        for i in range(_nvars):
+            PY_SCIP_CALL(SCIPchgVarObj(self._scip, _vars[i], 0.0))
+
+
     def setObjective(self, coeffs, sense = 'minimize', clear = 'true'):
         """Establish the objective function as a linear expression.
 
