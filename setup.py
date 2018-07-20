@@ -37,6 +37,7 @@ if platform.system() in ['Linux', 'Darwin']:
 # enable debug mode if requested
 extra_compile_args = []
 if "--debug" in sys.argv:
+    print("installing in debug mode")
     extra_compile_args.append('-UNDEBUG')
     sys.argv.remove("--debug")
 

@@ -523,6 +523,10 @@ cdef extern from "scip/scip.h":
     SCIP_RETCODE SCIPchgVarUbGlobal(SCIP* scip, SCIP_VAR* var, SCIP_Real newbound)
     SCIP_RETCODE SCIPchgVarLbNode(SCIP* scip, SCIP_NODE* node, SCIP_VAR* var, SCIP_Real newbound)
     SCIP_RETCODE SCIPchgVarUbNode(SCIP* scip, SCIP_NODE* node, SCIP_VAR* var, SCIP_Real newbound)
+    SCIP_RETCODE SCIPtightenVarLb(SCIP* scip, SCIP_VAR* var, SCIP_Real newbound,
+                                  SCIP_Bool force, SCIP_Bool* infeasible, SCIP_Bool* tightened)
+    SCIP_RETCODE SCIPtightenVarUb(SCIP* scip, SCIP_VAR* var, SCIP_Real newbound,
+                                  SCIP_Bool force, SCIP_Bool* infeasible, SCIP_Bool* tightened)
     SCIP_RETCODE SCIPfixVar(SCIP* scip, SCIP_VAR* var, SCIP_Real fixedval, SCIP_Bool* infeasible, SCIP_Bool* fixed)
     SCIP_RETCODE SCIPdelVar(SCIP* scip, SCIP_VAR* var, SCIP_Bool* deleted)
 

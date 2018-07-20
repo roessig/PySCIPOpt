@@ -1021,6 +1021,33 @@ cdef class Model:
         PY_SCIP_CALL(SCIPdelVar(self._scip, var.var, &deleted))
         return deleted
 
+    def tightenVarLb(self, Variable var, lb, force=False):
+        """Tighten the lower bound, if the bound is tighter.
+        :param var: SCIP variable
+        :param lb: possible new lower bound
+        :param force: force tightening even if below bound strengthening tolerance
+        :return: bool, if the bound was tightened
+        """
+
+        cdef SCIP_Bool infeasible
+        cdef SCIP_Bool tightened
+        PY_SCIP_CALL(SCIPtightenVarLb(self._scip, var.var, lb, force, &infeasible, &tightened))
+        return tightened
+
+
+    def tightenVarUb(self, Variable var, lb, force=False):
+        """Tighten the upper bound, if the bound is tighter.
+        :param var: SCIP variable
+        :param lb: possible new lower bound
+        :param force: force tightening even if below bound strengthening tolerance
+        :return: bool, if the bound was tightened
+        """
+
+        cdef SCIP_Bool infeasible
+        cdef SCIP_Bool tightened
+        PY_SCIP_CALL(SCIPtightenVarUb(self._scip, var.var, lb, force, &infeasible, &tightened))
+        return tightened
+
 
     def chgVarLb(self, Variable var, lb):
         """Changes the lower bound of the specified variable.
