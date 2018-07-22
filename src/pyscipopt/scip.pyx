@@ -438,7 +438,7 @@ cdef class Variable(Expr):
 
     property name:
         def __get__(self):
-            cname = bytes( SCIPvarGetName(self.var) )
+            cname = bytes(SCIPvarGetName(self.var))
             return cname.decode('utf-8')
 
     def ptr(self):
@@ -1036,7 +1036,7 @@ cdef class Model:
         return deleted
 
     def tightenVarLb(self, Variable var, lb, force=False):
-        """Tighten the lower bound, if the bound is tighter.
+        """Tighten the lower bound in preprocessing or current node, if the bound is tighter.
         :param var: SCIP variable
         :param lb: possible new lower bound
         :param force: force tightening even if below bound strengthening tolerance
@@ -1050,7 +1050,7 @@ cdef class Model:
 
 
     def tightenVarUb(self, Variable var, lb, force=False):
-        """Tighten the upper bound, if the bound is tighter.
+        """Tighten the upper bound in preprocessing or current node, if the bound is tighter.
         :param var: SCIP variable
         :param lb: possible new lower bound
         :param force: force tightening even if below bound strengthening tolerance
@@ -1296,7 +1296,7 @@ cdef class Model:
     def addCons(self, cons, name='', initial=True, separate=True,
                 enforce=True, check=True, propagate=True, local=False,
                 modifiable=False, dynamic=False, removable=False,
-                stickingatnode=False, Node node=None, Node valid_node=None, node_trick=False):
+                stickingatnode=False, Node node=None, Node valid_node=None):
         """Add a linear or quadratic constraint.
 
         :param cons: list of coefficients
@@ -1324,7 +1324,7 @@ cdef class Model:
                       propagate=propagate, local=local,
                       modifiable=modifiable, dynamic=dynamic,
                       removable=removable,
-                      stickingatnode=stickingatnode, node=node, valid_node=valid_node, node_trick=node_trick)
+                      stickingatnode=stickingatnode, node=node, valid_node=valid_node)
         kwargs['lhs'] = -SCIPinfinity(self._scip) if cons.lhs is None else cons.lhs
         kwargs['rhs'] =  SCIPinfinity(self._scip) if cons.rhs is None else cons.rhs
 
@@ -1372,18 +1372,20 @@ cdef class Model:
         #     var = <Variable>key[0]
         #     PY_SCIP_CALL(SCIPaddCoefLinear(self._scip, scip_cons, var.var, <SCIP_Real>coeff))
 
-        if kwargs["node"] is None and not kwargs["node_trick"]:
+        if kwargs["node"] is None:
             PY_SCIP_CALL(SCIPaddCons(self._scip, scip_cons))
             #print("add cons globally")
-        elif not kwargs["node_trick"]:
+        #elif not kwargs["node_trick"]:
+        else:
             # add cons at a node, valid_node is set to NULL
             #print("add cons to node", kwargs["node"])
             PY_SCIP_CALL(SCIPaddConsNode(self._scip, (<Node>kwargs["node"]).node, scip_cons, NULL))
             # maybe should use this function for local constraints
             #PY_SCIP_CALL(SCIPaddConsLocal(self._scip, scip_cons, NULL))
-        else:
+
+        #else:
             # TODO what is the sense of this ???
-            PY_SCIP_CALL(SCIPaddConsNode(self._scip, NULL, scip_cons, NULL))
+         #   PY_SCIP_CALL(SCIPaddConsNode(self._scip, NULL, scip_cons, NULL))
 
         PyCons = Constraint.create(scip_cons)
         PY_SCIP_CALL(SCIPreleaseCons(self._scip, &scip_cons))
