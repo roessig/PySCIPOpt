@@ -250,6 +250,16 @@ cdef class Event:
     def __repr__(self):
         return self.getType()
 
+    def getNewBound(self):
+        return SCIPeventGetNewbound(self.event)
+
+    def getOldBound(self):
+        return SCIPeventGetOldbound(self.event)
+
+    def getVar(self):
+        cdef SCIP_VAR* var = SCIPeventGetVar(self.event)
+        return Variable.create(var)
+
 cdef class Column:
     """Base class holding a pointer to corresponding SCIP_COL"""
     cdef SCIP_COL* col
@@ -1042,7 +1052,8 @@ cdef class Model:
         :param force: force tightening even if below bound strengthening tolerance
         :return: bool, if the bound was tightened
         """
-
+        if var.name == "in_4":
+            print("LB change tightenVarLb !!! from ", var.getLbLocal(), "to", lb)
         cdef SCIP_Bool infeasible
         cdef SCIP_Bool tightened
         PY_SCIP_CALL(SCIPtightenVarLb(self._scip, var.var, lb, force, &infeasible, &tightened))
@@ -1070,6 +1081,8 @@ cdef class Model:
         :param lb: new lower bound (set to None for -infinity)
 
         """
+        if var.name == "in_4":
+            print("LB change chgVarLb !!! from ", var.getLbLocal(), "to", lb)
         if lb is None:
            lb = -SCIPinfinity(self._scip)
         PY_SCIP_CALL(SCIPchgVarLb(self._scip, var.var, lb))
@@ -1093,6 +1106,8 @@ cdef class Model:
         :param lb: new lower bound (set to None for -infinity)
 
         """
+        if var.name == "in_4":
+            print("LB change chgVarLb !!! in_4 global from ", var.getLbLocal(), "to", lb)
         if lb is None:
            lb = -SCIPinfinity(self._scip)
         PY_SCIP_CALL(SCIPchgVarLbGlobal(self._scip, var.var, lb))
@@ -1115,6 +1130,8 @@ cdef class Model:
         :param lb: new lower bound (set to None for -infinity)
 
         """
+        if var.name == "in_4":
+            print("LB change chgVarLbNode !!! from ", var.getLbLocal(), "to", lb)
         if lb is None:
            lb = -SCIPinfinity(self._scip)
         PY_SCIP_CALL(SCIPchgVarLbNode(self._scip, (<Node>node).node, var.var, lb))

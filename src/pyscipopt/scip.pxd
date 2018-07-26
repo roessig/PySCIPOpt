@@ -496,6 +496,10 @@ cdef extern from "scip/scip.h":
                                   int filterpos)
     SCIP_EVENTHDLR* SCIPfindEventhdlr(SCIP* scip, const char* name)
     SCIP_EVENTTYPE SCIPeventGetType(SCIP_EVENT* event)
+    SCIP_Real SCIPeventGetNewbound(SCIP_EVENT* event)
+    SCIP_Real SCIPeventGetOldbound(SCIP_EVENT* event)
+    SCIP_VAR* SCIPeventGetVar(SCIP_EVENT* event)
+
 
     # Global Problem Methods
     SCIP_RETCODE SCIPcreateProbBasic(SCIP* scip, char* name)
