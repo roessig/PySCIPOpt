@@ -2399,7 +2399,6 @@ cdef class Model:
         #self.setIntParam("limits/maxorigsol", 0)
         free(subprobs)
 
-
     def computeBestSolSubproblems(self):
         """Solves the subproblems with the best solution to the master problem.
         Afterwards, the best solution from each subproblem can be queried to get
@@ -2860,6 +2859,11 @@ cdef class Model:
         PY_SCIP_CALL(SCIPsolveProbingLP(self._scip, itlim, &lperror, &cutoff))
         return lperror, cutoff
 
+
+    def interruptSolve(self):
+        """Interrupt the solving process as soon as possible."""
+        PY_SCIP_CALL(SCIPinterruptSolve(self._scip))
+
     # Solution functions
 
     def createSol(self, Heur heur = None):
@@ -3119,6 +3123,7 @@ cdef class Model:
             return "minimize"
         else:
             return "unknown"
+
 
     def catchEvent(self, eventtype, Eventhdlr eventhdlr):
         cdef SCIP_EVENTHDLR* _eventhdlr

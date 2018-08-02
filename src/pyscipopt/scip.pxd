@@ -499,6 +499,7 @@ cdef extern from "scip/scip.h":
     SCIP_Real SCIPeventGetNewbound(SCIP_EVENT* event)
     SCIP_Real SCIPeventGetOldbound(SCIP_EVENT* event)
     SCIP_VAR* SCIPeventGetVar(SCIP_EVENT* event)
+    SCIP_RETCODE SCIPinterruptSolve(SCIP* scip)
 
 
     # Global Problem Methods
