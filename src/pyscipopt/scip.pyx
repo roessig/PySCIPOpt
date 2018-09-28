@@ -593,6 +593,13 @@ cdef class Constraint:
         constype = bytes(SCIPconshdlrGetName(SCIPconsGetHdlr(self.cons))).decode('UTF-8')
         return constype == 'quadratic'
 
+
+cdef void relayMessage(SCIP_MESSAGEHDLR *messagehdlr, FILE *file, const char *msg):
+    sys.stdout.write(msg.decode('UTF-8'))
+
+cdef void relayErrorMessage(void *messagehdlr, FILE *file, const char *msg):
+    sys.stderr.write(msg.decode('UTF-8'))
+
 # - remove create(), includeDefaultPlugins(), createProbBasic() methods
 # - replace free() by "destructor"
 # - interface SCIPfreeProb()
@@ -2295,36 +2302,44 @@ cdef class Model:
         :param Constraint cons: linear constraint
 
         """
-        # TODO this should ideally be handled on the SCIP side
+        cdef SCIP_Real dualsolval
+        cdef SCIP_Bool boundconstraint
         cdef int _nvars
         cdef SCIP_VAR** _vars
+        cdef SCIP_Real* _vals
         cdef SCIP_Bool _success
-        dual = 0.0
 
-        constype = bytes(SCIPconshdlrGetName(SCIPconsGetHdlr(cons.cons))).decode('UTF-8')
-        if not constype == 'linear':
-            raise Warning("dual solution values not available for constraints of type ", constype)
+        if self.version() > 6.0:
+            PY_SCIP_CALL( SCIPgetDualSolVal(self._scip, cons.cons, &dualsolval, &boundconstraint) )
+            return dualsolval
+        else:
+            dual = 0.0
 
-        try:
-            _nvars = SCIPgetNVarsLinear(self._scip, cons.cons)
-            if cons.isOriginal():
-                transcons = <Constraint>self.getTransformedCons(cons)
-            else:
-                transcons = cons
-            dual = SCIPgetDualsolLinear(self._scip, transcons.cons)
-            if dual == 0.0 and _nvars == 1:
-                _vars = SCIPgetVarsLinear(self._scip, transcons.cons)
-                LPsol = SCIPvarGetLPSol(_vars[0])
-                rhs = SCIPgetRhsLinear(self._scip, transcons.cons)
-                lhs = SCIPgetLhsLinear(self._scip, transcons.cons)
-                if (LPsol == rhs) or (LPsol == lhs):
-                    dual = SCIPgetVarRedcost(self._scip, _vars[0])
+            constype = bytes(SCIPconshdlrGetName(SCIPconsGetHdlr(cons.cons))).decode('UTF-8')
+            if not constype == 'linear':
+                raise Warning("dual solution values not available for constraints of type ", constype)
 
-            if self.getObjectiveSense() == "maximize":
-                dual = -dual
-        except:
-            raise Warning("no dual solution available for constraint " + cons.name)
-        return dual
+            try:
+                _nvars = SCIPgetNVarsLinear(self._scip, cons.cons)
+                if cons.isOriginal():
+                    transcons = <Constraint>self.getTransformedCons(cons)
+                else:
+                    transcons = cons
+                dual = SCIPgetDualsolLinear(self._scip, transcons.cons)
+                if dual == 0.0 and _nvars == 1:
+                    _vars = SCIPgetVarsLinear(self._scip, transcons.cons)
+                    _vals = SCIPgetValsLinear(self._scip, transcons.cons)
+                    activity = SCIPvarGetLPSol(_vars[0]) * _vals[0]
+                    rhs = SCIPgetRhsLinear(self._scip, transcons.cons)
+                    lhs = SCIPgetLhsLinear(self._scip, transcons.cons)
+                    if (activity == rhs) or (activity == lhs):
+                        dual = SCIPgetVarRedcost(self._scip, _vars[0])
+
+                if self.getObjectiveSense() == "maximize" and not dual == 0.0:
+                    dual = -dual
+            except:
+                raise Warning("no dual solution available for constraint " + cons.name)
+            return dual
 
     def getDualfarkasLinear(self, Constraint cons):
         """Retrieve the dual farkas value to a linear constraint.
@@ -2371,6 +2386,7 @@ cdef class Model:
         subproblems -- a single Model instance or dictionary of Model instances
         """
         cdef SCIP** subprobs
+        cdef SCIP_BENDERS* benders
 
         # checking whether subproblems is a dictionary
         if isinstance(subproblems, dict):
@@ -2392,6 +2408,7 @@ cdef class Model:
 
         # creating the default Benders' decomposition
         PY_SCIP_CALL(SCIPcreateBendersDefault(self._scip, subprobs, nsubproblems))
+        benders = SCIPfindBenders(self._scip, "default")
 
         # activating the Benders' decomposition constraint handlers
         self.setBoolParam("constraints/benderslp/active", True)
@@ -2444,6 +2461,24 @@ cdef class Model:
             for j in range(nsubproblems):
                 PY_SCIP_CALL(SCIPfreeBendersSubproblem(self._scip, _benders[i],
                     j))
+
+    def updateBendersLowerbounds(self, lowerbounds, Benders benders=None):
+        """"updates the subproblem lower bounds for benders using
+        the lowerbounds dict. If benders is None, then the default
+        Benders' decomposition is updated
+        """
+        cdef SCIP_BENDERS* _benders
+
+        assert type(lowerbounds) is dict
+
+        if benders is None:
+            _benders = SCIPfindBenders(self._scip, "default")
+        else:
+            n = str_conversion(benders.name)
+            _benders = SCIPfindBenders(self._scip, n)
+
+        for d in lowerbounds.keys():
+            SCIPbendersUpdateSubproblemLowerbound(_benders, d, lowerbounds[d])
 
     def includeEventhdlr(self, Eventhdlr eventhdlr, name, desc):
         """Include an event handler.
@@ -2700,6 +2735,7 @@ cdef class Model:
         cdef SCIP_BENDERS* scip_benders
         scip_benders = SCIPfindBenders(self._scip, n)
         benders.model = <Model>weakref.proxy(self)
+        benders.name = name
         Py_INCREF(benders)
 
     def getLPBranchCands(self):
@@ -3209,6 +3245,17 @@ cdef class Model:
 
         """
         SCIPsetMessagehdlrQuiet(self._scip, quiet)
+
+    # Output Methods
+
+    def redirectOutput(self):
+        """Send output to python instead of terminal."""
+
+        cdef SCIP_MESSAGEHDLR *myMessageHandler
+
+        PY_SCIP_CALL(SCIPmessagehdlrCreate(&myMessageHandler, False, NULL, False, relayMessage, relayMessage, relayMessage, NULL, NULL))
+        PY_SCIP_CALL(SCIPsetMessagehdlr(self._scip, myMessageHandler))
+        SCIPmessageSetErrorPrinting(relayErrorMessage, NULL)
 
     # Parameter Methods
 
