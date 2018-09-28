@@ -477,6 +477,9 @@ cdef extern from "scip/scip.h":
     SCIP_RETCODE SCIPchgVarObjProbing(SCIP* scip, SCIP_VAR* var, SCIP_Real newobj)
     SCIP_RETCODE SCIPsolveProbingLP(SCIP* scip, int itlim, SCIP_Bool* lperror, SCIP_Bool* cutoff)
     SCIP_RETCODE SCIPendProbing(SCIP* scip)
+    SCIP_RETCODE SCIPfixVarProbing(SCIP* scip, SCIP_VAR* var, SCIP_Real fixedval)
+    SCIP_Bool SCIPisObjChangedProbing(SCIP* scip)
+
 
     # Event Methods
     SCIP_RETCODE SCIPcatchEvent(SCIP* scip,
@@ -615,6 +618,8 @@ cdef extern from "scip/scip.h":
     SCIP_RETCODE SCIPgetLPBasisInd(SCIP* scip, int* basisind)
     SCIP_RETCODE SCIPgetLPBInvRow(SCIP* scip, int r, SCIP_Real* coefs, int* inds, int* ninds)
     SCIP_RETCODE SCIPgetLPBInvARow(SCIP* scip, int r, SCIP_Real* binvrow, SCIP_Real* coefs, int* inds, int* ninds)
+    SCIP_RETCODE SCIPconstructLP(SCIP* scip, SCIP_Bool* cutoff)
+    SCIP_Real SCIPgetLPObjval(SCIP* scip)
     SCIP_Bool SCIPisLPSolBasic(SCIP* scip)
     SCIP_LPSOLSTAT SCIPgetLPSolstat(SCIP* scip)
     int SCIPgetNLPRows(SCIP* scip)

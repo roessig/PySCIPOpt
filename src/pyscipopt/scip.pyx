@@ -1204,6 +1204,22 @@ cdef class Model:
         """Gets solution status of current LP"""
         return SCIPgetLPSolstat(self._scip)
 
+    def constructLP(self):
+        """makes sure that the LP of the current node is loaded and
+         may be accessed through the LP information methods
+
+         Returns:
+             cutoff: bool, can the node be cut off?
+         """
+        cdef SCIP_Bool cutoff
+        PY_SCIP_CALL(SCIPconstructLP(self._scip, &cutoff))
+        return cutoff
+
+    def getLPObjVal(self):
+        """gets objective value of current LP (which is the sum of column and loose objective value)"""
+
+        return SCIPgetLPObjval(self._scip)
+
     def getLPColsData(self):
         """Retrieve current LP columns"""
         cdef SCIP_COL** cols
@@ -2881,6 +2897,13 @@ cdef class Model:
         """changes (column) variable's objective value during probing mode"""
         PY_SCIP_CALL(SCIPchgVarObjProbing(self._scip, var.var, newobj))
 
+    def fixVarProbing(self, Variable var, fixedval):
+        """Fixes a variable at the current probing node."""
+        PY_SCIP_CALL(SCIPfixVarProbing(self._scip, var.var, fixedval))
+
+    def isObjChangedProbing(self):
+        return SCIPisObjChangedProbing(self._scip)
+
     def solveProbingLP(self, itlim = -1):
         """solves the LP at the current probing node (cannot be applied at preprocessing stage)
         no separation or pricing is applied
@@ -2894,7 +2917,6 @@ cdef class Model:
 
         PY_SCIP_CALL(SCIPsolveProbingLP(self._scip, itlim, &lperror, &cutoff))
         return lperror, cutoff
-
 
     def interruptSolve(self):
         """Interrupt the solving process as soon as possible."""
