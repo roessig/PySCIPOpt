@@ -260,6 +260,10 @@ cdef class Event:
         cdef SCIP_VAR* var = SCIPeventGetVar(self.event)
         return Variable.create(var)
 
+    def getNode(self):
+        cdef SCIP_NODE* node = SCIPeventGetNode(self.event)
+        return Node.create(node)
+
 cdef class Column:
     """Base class holding a pointer to corresponding SCIP_COL"""
     cdef SCIP_COL* col
@@ -425,7 +429,6 @@ cdef class Node:
         SCIPnodeGetAddedConss(self.node, _conss, &_nconss_new, _nconss)
         return [Constraint.create(_conss[i]) for i in range(_nconss_new)]
 
-
     def isActive(self):
         """Is the node in the path to the current node?"""
         return SCIPnodeIsActive(self.node)
@@ -433,7 +436,6 @@ cdef class Node:
     def isPropagatedAgain(self):
         """Is the node marked to be propagated again?"""
         return SCIPnodeIsPropagatedAgain(self.node)
-
 
 cdef class Variable(Expr):
     """Is a linear expression and has SCIP_VAR*"""
@@ -1059,8 +1061,6 @@ cdef class Model:
         :param force: force tightening even if below bound strengthening tolerance
         :return: bool, if the bound was tightened
         """
-        if var.name == "in_4":
-            print("LB change tightenVarLb !!! from ", var.getLbLocal(), "to", lb)
         cdef SCIP_Bool infeasible
         cdef SCIP_Bool tightened
         PY_SCIP_CALL(SCIPtightenVarLb(self._scip, var.var, lb, force, &infeasible, &tightened))
@@ -1074,12 +1074,10 @@ cdef class Model:
         :param force: force tightening even if below bound strengthening tolerance
         :return: bool, if the bound was tightened
         """
-
         cdef SCIP_Bool infeasible
         cdef SCIP_Bool tightened
         PY_SCIP_CALL(SCIPtightenVarUb(self._scip, var.var, lb, force, &infeasible, &tightened))
         return tightened
-
 
     def chgVarLb(self, Variable var, lb):
         """Changes the lower bound of the specified variable.
@@ -1088,8 +1086,6 @@ cdef class Model:
         :param lb: new lower bound (set to None for -infinity)
 
         """
-        if var.name == "in_4":
-            print("LB change chgVarLb !!! from ", var.getLbLocal(), "to", lb)
         if lb is None:
            lb = -SCIPinfinity(self._scip)
         PY_SCIP_CALL(SCIPchgVarLb(self._scip, var.var, lb))
@@ -1113,8 +1109,6 @@ cdef class Model:
         :param lb: new lower bound (set to None for -infinity)
 
         """
-        if var.name == "in_4":
-            print("LB change chgVarLb !!! in_4 global from ", var.getLbLocal(), "to", lb)
         if lb is None:
            lb = -SCIPinfinity(self._scip)
         PY_SCIP_CALL(SCIPchgVarLbGlobal(self._scip, var.var, lb))
@@ -1135,13 +1129,11 @@ cdef class Model:
 
         :param Variable var: variable to change bound of
         :param lb: new lower bound (set to None for -infinity)
-
         """
-        if var.name == "in_4":
-            print("LB change chgVarLbNode !!! from ", var.getLbLocal(), "to", lb)
+
         if lb is None:
            lb = -SCIPinfinity(self._scip)
-        PY_SCIP_CALL(SCIPchgVarLbNode(self._scip, (<Node>node).node, var.var, lb))
+        PY_SCIP_CALL(SCIPchgVarLbNode(self._scip, node.node, var.var, lb))
 
     def chgVarUbNode(self, Node node, Variable var, ub):
         """Changes the upper bound of the specified variable at the given node.
@@ -1152,7 +1144,20 @@ cdef class Model:
         """
         if ub is None:
            ub = SCIPinfinity(self._scip)
-        PY_SCIP_CALL(SCIPchgVarUbNode(self._scip, (<Node>node).node, var.var, ub))
+        PY_SCIP_CALL(SCIPchgVarUbNode(self._scip, node.node, var.var, ub))
+
+    def updateNodeLowerbound(self, Node node, lb):
+        """if given value is larger than the node's lower bound (in transformed problem),
+        sets the node's lower bound to the new value
+
+        Args:
+            node: Node, the node to update
+            newbound: float, new bound (if greater) for the node
+        """
+        PY_SCIP_CALL(SCIPupdateNodeLowerbound(self._scip, node.node, lb))
+
+
+
 
     def chgVarType(self, Variable var, vtype):
         """Changes the type of a variable
@@ -1422,10 +1427,6 @@ cdef class Model:
             PY_SCIP_CALL(SCIPaddConsNode(self._scip, (<Node>kwargs["node"]).node, scip_cons, NULL))
             # maybe should use this function for local constraints
             #PY_SCIP_CALL(SCIPaddConsLocal(self._scip, scip_cons, NULL))
-
-        #else:
-            # TODO what is the sense of this ???
-         #   PY_SCIP_CALL(SCIPaddConsNode(self._scip, NULL, scip_cons, NULL))
 
         PyCons = Constraint.create(scip_cons)
         PY_SCIP_CALL(SCIPreleaseCons(self._scip, &scip_cons))
@@ -2725,6 +2726,15 @@ cdef class Model:
         branchrule.model = <Model>weakref.proxy(self)
         Py_INCREF(branchrule)
 
+    def includeBranchruleNNDomain(self):
+        """
+        """
+        PY_SCIP_CALL(SCIPincludeBranchruleNNDomain(self._scip))
+
+    def setNNDomainData(self):
+        pass
+        #cdef BRANCHRULE_DATA*
+
     def includeBenders(self, Benders benders, name, desc, priority=1, cutlp=True, cutpseudo=True, cutrelax=True,
             shareaux=False):
         """Include a Benders' decomposition.
@@ -2903,6 +2913,10 @@ cdef class Model:
 
     def isObjChangedProbing(self):
         return SCIPisObjChangedProbing(self._scip)
+
+    def inProbing(self):
+        return SCIPinProbing(self._scip)
+
 
     def solveProbingLP(self, itlim = -1):
         """solves the LP at the current probing node (cannot be applied at preprocessing stage)
@@ -3134,6 +3148,7 @@ cdef class Model:
             raise Warning("method cannot be called before problem is solved")
         return self.getSolVal(self._bestSol, var)
 
+
     def getPrimalbound(self):
         """Retrieve the best primal bound."""
         return SCIPgetPrimalbound(self._scip)
@@ -3269,7 +3284,6 @@ cdef class Model:
         SCIPsetMessagehdlrQuiet(self._scip, quiet)
 
     # Output Methods
-
     def redirectOutput(self):
         """Send output to python instead of terminal."""
 

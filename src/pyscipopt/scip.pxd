@@ -479,6 +479,7 @@ cdef extern from "scip/scip.h":
     SCIP_RETCODE SCIPendProbing(SCIP* scip)
     SCIP_RETCODE SCIPfixVarProbing(SCIP* scip, SCIP_VAR* var, SCIP_Real fixedval)
     SCIP_Bool SCIPisObjChangedProbing(SCIP* scip)
+    SCIP_Bool SCIPinProbing(SCIP* scip)
 
 
     # Event Methods
@@ -521,6 +522,7 @@ cdef extern from "scip/scip.h":
     SCIP_Real SCIPeventGetNewbound(SCIP_EVENT* event)
     SCIP_Real SCIPeventGetOldbound(SCIP_EVENT* event)
     SCIP_VAR* SCIPeventGetVar(SCIP_EVENT* event)
+    SCIP_NODE* SCIPeventGetNode(SCIP_EVENT* event)
     SCIP_RETCODE SCIPinterruptSolve(SCIP* scip)
 
 
@@ -559,6 +561,7 @@ cdef extern from "scip/scip.h":
     SCIP_Longint SCIPnodeGetNumber(SCIP_NODE* node)
     int SCIPnodeGetDepth(SCIP_NODE* node)
     SCIP_Real SCIPnodeGetLowerbound(SCIP_NODE* node)
+    SCIP_RETCODE SCIPupdateNodeLowerbound(SCIP* scip, SCIP_NODE* node, SCIP_Real newbound)
     SCIP_Real SCIPnodeGetEstimate(SCIP_NODE* node)
     SCIP_NODETYPE SCIPnodeGetType(SCIP_NODE* node)
     SCIP_Bool SCIPnodeIsActive(SCIP_NODE* node)
@@ -943,6 +946,10 @@ cdef extern from "scip/scip.h":
                                        SCIP_RETCODE (*branchruleexecps) (SCIP* scip, SCIP_BRANCHRULE* branchrule, SCIP_Bool allowaddcons, SCIP_RESULT* result),
                                        SCIP_BRANCHRULEDATA* branchruledata)
     SCIP_BRANCHRULEDATA* SCIPbranchruleGetData(SCIP_BRANCHRULE* branchrule)
+    void SCIPbranchruleSetData(SCIP_BRANCHRULE* branchrule,
+                               SCIP_BRANCHRULEDATA* branchruledata
+                               )
+
 
     # Benders' decomposition plugin
     SCIP_RETCODE SCIPincludeBenders(SCIP* scip,
@@ -1255,6 +1262,10 @@ cdef extern from "scip/cons_bounddisjunction.h":
                                     SCIP_Bool dynamic,
                                     SCIP_Bool removable,
                                     SCIP_Bool stickingatnode)
+
+cdef extern from "scip/branch_nndomain.h":
+    SCIP_RETCODE SCIPincludeBranchruleNNDomain(SCIP* scip)
+
 
 cdef extern from "scip/cons_and.h":
     SCIP_RETCODE SCIPcreateConsAnd(SCIP* scip,

@@ -42,12 +42,12 @@ if "--debug" in sys.argv:
     sys.argv.remove("--debug")
 
 extensions = [Extension('pyscipopt.scip', [os.path.join(packagedir, 'scip'+ext)],
-                          include_dirs=[includedir],
                           library_dirs=[libdir],
                           libraries=[libname],
                           runtime_library_dirs=runtime_library_dirs,
                           extra_compile_args = extra_compile_args,
-                          extra_link_args=extra_link_args
+                          extra_link_args=extra_link_args,
+                        include_dirs=[includedir],
                           )]
 
 if cythonize:
