@@ -449,15 +449,6 @@ cdef extern from "scip/scip.h":
     SCIP_STAGE SCIPgetStage(SCIP* scip)
     SCIP_RETCODE SCIPsetProbName(SCIP* scip, char* name)
     const char* SCIPgetProbName(SCIP* scip)
-    SCIP_RETCODE SCIPcopy(SCIP* sourcescip,
-		SCIP*  	targetscip,
-		SCIP_HASHMAP*  	varmap,
-		SCIP_HASHMAP*  	consmap,
-		const char* suffix,
-		SCIP_Bool  global_copy,
-		SCIP_Bool  enablepricing,
-		SCIP_Bool  passmessagehdlr,
-		SCIP_Bool* valid)
 
     # Diving methods
     SCIP_RETCODE SCIPstartDive(SCIP* scip)
@@ -638,10 +629,6 @@ cdef extern from "scip/scip.h":
     SCIP_Real SCIPgetCutEfficacy(SCIP* scip, SCIP_SOL* sol, SCIP_ROW* cut)
     SCIP_Bool SCIPisCutEfficacious(SCIP* scip, SCIP_SOL* sol, SCIP_ROW* cut)
 
-    SCIP_RETCODE SCIPmarkDoNotMultaggrVar(SCIP* scip, SCIP_VAR* var)
-    SCIP_VAR** SCIPgetFixedVars(SCIP* scip)
-    int SCIPgetNFixedVars(SCIP* scip)
-
     # Constraint Methods
     SCIP_RETCODE SCIPcaptureCons(SCIP* scip, SCIP_CONS* cons)
     SCIP_RETCODE SCIPreleaseCons(SCIP* scip, SCIP_CONS** cons)
@@ -658,7 +645,6 @@ cdef extern from "scip/scip.h":
     SCIP_Bool SCIPconsIsChecked(SCIP_CONS* cons)
     SCIP_Bool SCIPconsIsPropagated(SCIP_CONS* cons)
     SCIP_Bool SCIPconsIsLocal(SCIP_CONS* cons)
-    SCIP_Bool SCIPconsIsGlobal(SCIP_CONS* cons)
     SCIP_Bool SCIPconsIsModifiable(SCIP_CONS* cons)
     SCIP_Bool SCIPconsIsDynamic(SCIP_CONS* cons)
     SCIP_Bool SCIPconsIsRemovable(SCIP_CONS* cons)
@@ -951,10 +937,6 @@ cdef extern from "scip/scip.h":
                                        SCIP_RETCODE (*branchruleexecps) (SCIP* scip, SCIP_BRANCHRULE* branchrule, SCIP_Bool allowaddcons, SCIP_RESULT* result),
                                        SCIP_BRANCHRULEDATA* branchruledata)
     SCIP_BRANCHRULEDATA* SCIPbranchruleGetData(SCIP_BRANCHRULE* branchrule)
-    void SCIPbranchruleSetData(SCIP_BRANCHRULE* branchrule,
-                               SCIP_BRANCHRULEDATA* branchruledata
-                               )
-
 
     # Benders' decomposition plugin
     SCIP_RETCODE SCIPincludeBenders(SCIP* scip,
@@ -998,15 +980,6 @@ cdef extern from "scip/scip.h":
     SCIP_BENDERS** SCIPgetBenders(SCIP* scip)
     void SCIPbendersUpdateSubproblemLowerbound(SCIP_BENDERS* benders, int probnumber, SCIP_Real lowerbound)
 
-    SCIP_RETCODE SCIPgetNLPBranchCands(SCIP* scip)
-    SCIP_RETCODE SCIPgetLPBranchCands(SCIP* scip,
-                                        SCIP_VAR***  lpcands,
-                                        SCIP_Real**  lpcandssol,
-                                        SCIP_Real**  lpcandsfrac,
-                                        int*  	nlpcands,
-                                        int*  	npriolpcands,
-                                        int*  	nfracimplvars)
-
     SCIP_RETCODE SCIPbranchVar(SCIP* scip,
                                 SCIP_VAR* var,
                                 SCIP_NODE**  downchild,
@@ -1019,15 +992,6 @@ cdef extern from "scip/scip.h":
                                 SCIP_NODE** downchild,
                                 SCIP_NODE**  eqchild,
                                 SCIP_NODE** upchild)
-
-    SCIP_RETCODE SCIPaddConsNode(SCIP* scip,
-		                        SCIP_NODE*  node,
-		                        SCIP_CONS*  cons,
-		                        SCIP_NODE*  validnode)
-
-    SCIP_RETCODE SCIPaddConsLocal(SCIP* scip,
-		                        SCIP_CONS*  cons,
-		                        SCIP_NODE*  validnode)
 
     # Numerical Methods
     SCIP_Real SCIPinfinity(SCIP* scip)
@@ -1102,17 +1066,11 @@ cdef extern from "scip/scip.h":
     #re-optimization routines
     SCIP_RETCODE SCIPfreeReoptSolve(SCIP* scip)
     SCIP_RETCODE SCIPchgReoptObjective(SCIP* scip, SCIP_OBJSENSE objsense, SCIP_VAR** vars, SCIP_Real* coefs, int nvars)
-    SCIP_RETCODE SCIPenableReoptimization(SCIP* scip, SCIP_Bool enable)
-    SCIP_RETCODE SCIPisReoptEnabled(SCIP* scip)
 
     BMS_BLKMEM* SCIPblkmem(SCIP* scip)
 
 cdef extern from "scip/tree.h":
     int SCIPnodeGetNAddedConss(SCIP_NODE* node)
-    void SCIPnodeGetAddedConss(SCIP_NODE* node,
-		                    SCIP_CONS** addedconss,
-		                    int* naddedconss,
-		                    int  addedconsssize)
 
 cdef extern from "scip/scipdefplugins.h":
     SCIP_RETCODE SCIPincludeDefaultPlugins(SCIP* scip)
@@ -1248,29 +1206,6 @@ cdef extern from "scip/cons_sos2.h":
     SCIP_RETCODE SCIPappendVarSOS2(SCIP* scip,
                                    SCIP_CONS* cons,
                                    SCIP_VAR* var)
-
-cdef extern from "scip/cons_bounddisjunction.h":
-    SCIP_RETCODE SCIPcreateConsBounddisjunction(SCIP* scip,
-                                    SCIP_CONS** cons,
-                                    const char* name,
-                                    int nvars,
-                                    SCIP_VAR** vars,
-                                    SCIP_BOUNDTYPE* boundtypes,
-                                    SCIP_Real* bounds,
-                                    SCIP_Bool initial,
-                                    SCIP_Bool separate,
-                                    SCIP_Bool enforce,
-                                    SCIP_Bool check,
-                                    SCIP_Bool propagate,
-                                    SCIP_Bool local,
-                                    SCIP_Bool modifiable,
-                                    SCIP_Bool dynamic,
-                                    SCIP_Bool removable,
-                                    SCIP_Bool stickingatnode)
-
-cdef extern from "scip/branch_nndomain.h":
-    SCIP_RETCODE SCIPincludeBranchruleNNDomain(SCIP* scip)
-
 
 cdef extern from "scip/cons_and.h":
     SCIP_RETCODE SCIPcreateConsAnd(SCIP* scip,
