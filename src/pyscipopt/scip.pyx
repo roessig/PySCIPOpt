@@ -1067,16 +1067,41 @@ cdef class Model:
         return tightened
 
 
-    def tightenVarUb(self, Variable var, lb, force=False):
+    def tightenVarUb(self, Variable var, ub, force=False):
         """Tighten the upper bound in preprocessing or current node, if the bound is tighter.
         :param var: SCIP variable
-        :param lb: possible new lower bound
+        :param ub: possible new upper bound
         :param force: force tightening even if below bound strengthening tolerance
         :return: bool, if the bound was tightened
         """
         cdef SCIP_Bool infeasible
         cdef SCIP_Bool tightened
-        PY_SCIP_CALL(SCIPtightenVarUb(self._scip, var.var, lb, force, &infeasible, &tightened))
+        PY_SCIP_CALL(SCIPtightenVarUb(self._scip, var.var, ub, force, &infeasible, &tightened))
+        return tightened
+    
+    
+    def tightenVarUbGlobal(self, Variable var, ub, force=False):
+        """Tighten the global upper bound, if the bound is tighter.
+        :param var: SCIP variable
+        :param ub: possible new upper bound
+        :param force: force tightening even if below bound strengthening tolerance
+        :return: bool, if the bound was tightened
+        """
+        cdef SCIP_Bool infeasible
+        cdef SCIP_Bool tightened
+        PY_SCIP_CALL(SCIPtightenVarUbGlobal(self._scip, var.var, ub, force, &infeasible, &tightened))
+        return tightened
+    
+    def tightenVarLbGlobal(self, Variable var, lb, force=False):
+        """Tighten the global upper bound, if the bound is tighter.
+        :param var: SCIP variable
+        :param lb: possible new upper bound
+        :param force: force tightening even if below bound strengthening tolerance
+        :return: bool, if the bound was tightened
+        """
+        cdef SCIP_Bool infeasible
+        cdef SCIP_Bool tightened
+        PY_SCIP_CALL(SCIPtightenVarLbGlobal(self._scip, var.var, lb, force, &infeasible, &tightened))
         return tightened
 
     def chgVarLb(self, Variable var, lb):
@@ -1180,7 +1205,6 @@ cdef class Model:
 
     def getVars(self, transformed=False, fixed=False):
         """Retrieve all variables.
-
         :param transformed: get transformed variables instead of original (Default value = False)
         :param fixed: get all fixed and aggregated variables instead of original
         Only one of transformed and fixed may be true.
@@ -1208,6 +1232,7 @@ cdef class Model:
     def getLPSolstat(self):
         """Gets solution status of current LP"""
         return SCIPgetLPSolstat(self._scip)
+
 
     def constructLP(self):
         """makes sure that the LP of the current node is loaded and
@@ -2891,6 +2916,11 @@ cdef class Model:
 
         PY_SCIP_CALL(SCIPsolveDiveLP(self._scip, itlim, &lperror, &cutoff))
         return lperror, cutoff
+
+    def inRepropagation(self):
+        """returns if the current node is already solved and only propagated again."""
+        return SCIPinRepropagation(self._scip)
+
 
     # Probing methods (Probing is tree based)
     def startProbing(self):

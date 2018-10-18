@@ -567,6 +567,7 @@ cdef extern from "scip/scip.h":
     SCIP_Bool SCIPnodeIsActive(SCIP_NODE* node)
     SCIP_Bool SCIPnodeIsPropagatedAgain(SCIP_NODE* node)
     SCIP_RETCODE SCIPcreateChild(SCIP* scip, SCIP_NODE** node, SCIP_Real nodeselprio, SCIP_Real estimate)
+    SCIP_Bool SCIPinRepropagation(SCIP* scip)
 
     # Variable Methods
     SCIP_RETCODE SCIPcreateVarBasic(SCIP* scip,
@@ -587,6 +588,10 @@ cdef extern from "scip/scip.h":
                                   SCIP_Bool force, SCIP_Bool* infeasible, SCIP_Bool* tightened)
     SCIP_RETCODE SCIPtightenVarUb(SCIP* scip, SCIP_VAR* var, SCIP_Real newbound,
                                   SCIP_Bool force, SCIP_Bool* infeasible, SCIP_Bool* tightened)
+    SCIP_RETCODE SCIPtightenVarLbGlobal(SCIP* scip, SCIP_VAR* var, SCIP_Real newbound,
+                                        SCIP_Bool force, SCIP_Bool* infeasible, SCIP_Bool* tightened)
+    SCIP_RETCODE SCIPtightenVarUbGlobal(SCIP* scip, SCIP_VAR* var, SCIP_Real newbound,
+                                        SCIP_Bool force, SCIP_Bool* infeasible, SCIP_Bool* tightened)
     SCIP_RETCODE SCIPfixVar(SCIP* scip, SCIP_VAR* var, SCIP_Real fixedval, SCIP_Bool* infeasible, SCIP_Bool* fixed)
     SCIP_RETCODE SCIPdelVar(SCIP* scip, SCIP_VAR* var, SCIP_Bool* deleted)
 
