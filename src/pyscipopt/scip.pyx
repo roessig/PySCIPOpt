@@ -614,6 +614,11 @@ cdef class Model:
     # make Model weak referentiable
     cdef object __weakref__
 
+    cdef SCIP_Real* lhs
+    cdef SCIP_Real* rhs
+
+
+
     def __init__(self, problemName='model', defaultPlugins=True):
         """
         :param problemName: name of the problem (default 'model')
@@ -1170,6 +1175,14 @@ cdef class Model:
         if ub is None:
            ub = SCIPinfinity(self._scip)
         PY_SCIP_CALL(SCIPchgVarUbNode(self._scip, node.node, var.var, ub))
+
+    def chgVarLbTighten(self, Variable var, lb):
+        if SCIPisGT(self._scip, lb, SCIPvarGetLbLocal(var.var)):
+            PY_SCIP_CALL(SCIPchgVarLb(self._scip, var.var, lb))
+
+    def chgVarUbTighten(self, Variable var, ub):
+        if SCIPisLT(self._scip, ub, SCIPvarGetUbLocal(var.var)):
+            PY_SCIP_CALL(SCIPchgVarUb(self._scip, var.var, ub))
 
     def updateNodeLowerbound(self, Node node, lb):
         """if given value is larger than the node's lower bound (in transformed problem),
@@ -2939,12 +2952,23 @@ cdef class Model:
         """
         cdef SCIP_ROW** rows
         cdef int nrows
+        cdef int max_ind = 0
+        cdef int i
 
         PY_SCIP_CALL(SCIPgetLPRowsData(self._scip, &rows, &nrows))
-        cdef int i
+
         for i in range(nrows):
-            PY_SCIP_CALL(SCIPchgRowLhsDive(self._scip, rows[i], -SCIPinfinity(self._scip)))
-            PY_SCIP_CALL(SCIPchgRowRhsDive(self._scip, rows[i], SCIPinfinity(self._scip)))
+            if SCIProwGetIndex(rows[i]) > max_ind:
+                max_ind = SCIProwGetIndex(rows[i])
+
+        self.lhs = <SCIP_Real*> malloc((max_ind + 1) * sizeof(SCIP_Real))
+        self.rhs = <SCIP_Real*> malloc((max_ind + 1) * sizeof(SCIP_Real))
+
+        for i in range(nrows):
+            self.lhs[SCIProwGetIndex(rows[i])] = SCIProwGetLhs(rows[i])
+            self.rhs[SCIProwGetIndex(rows[i])] = SCIProwGetRhs(rows[i])
+            SCIPchgRowLhsDive(self._scip, rows[i], -SCIPinfinity(self._scip))
+            SCIPchgRowRhsDive(self._scip, rows[i], SCIPinfinity(self._scip))
 
     def fixAllVariablesToZeroDive(self):
         """Fixes all (transformed) variables to zero in diving mode. Must only be called when SCIP is in diving mode."""
@@ -2956,33 +2980,34 @@ cdef class Model:
             PY_SCIP_CALL(SCIPchgVarLbDive(self._scip, _vars[i], 0.0))
             PY_SCIP_CALL(SCIPchgVarUbDive(self._scip, _vars[i], 0.0))
 
-    def enableVarAndConssDive(self):
+    def enableVarAndConssDive(self, Variable var):
 
         cdef int ndivechgsides
         cdef SCIP_Real* divechgsides
         cdef SCIP_ROW** divechgrows
         cdef SCIP_SIDETYPE* divechgsidetypes
-        cdef SCIP* scip = self._scip    # not sure if this is necessary
 
 
-        #PY_SCIP_CALl(SCIPchgVarLbDive(self._scip, var.var, SCIPvarGetLbLocal(var.var)))
-        #PY_SCIP_CALL(SCIPchgVarUbDive(self._scip, var.var, SCIPvarGetUbLocal(var.var)))
-        PY_SCIP_CALL(SCIPgetLPRowChgsDive(self._scip, &ndivechgsides, &divechgsides, &divechgsidetypes, &divechgrows))
+        PY_SCIP_CALL(SCIPchgVarLbDive(self._scip, var.var, SCIPvarGetLbLocal(var.var)))
+        PY_SCIP_CALL(SCIPchgVarUbDive(self._scip, var.var, SCIPvarGetUbLocal(var.var)))
+        #PY_SCIP_CALL(SCIPgetLPRowChgsDive(self._scip, &ndivechgsides, &divechgsides, &divechgsidetypes, &divechgrows))
 
-        """cdef SCIP_COL* col
-        if SCIPvarIsInLP(var):
-            col = SCIPvarGetCol(var)
-            cdef SCIP_ROW** rows = SCIPcolGetRows(col)"""
+        cdef SCIP_COL* col
+        cdef SCIP_VAR* t_var = SCIPvarGetTransVar(var.var)
+        cdef SCIP_ROW** rows
+        if SCIPvarIsInLP(t_var):
+            col = SCIPvarGetCol(t_var)
+            rows = SCIPcolGetRows(col)
+            for i in range(SCIPcolGetNNonz(col)):
+                SCIPchgRowLhsDive(self._scip, rows[i], self.lhs[SCIProwGetIndex(rows[i])])
+                SCIPchgRowRhsDive(self._scip, rows[i], self.rhs[SCIProwGetIndex(rows[i])])
 
-        # we don't want Python stuff in the C loop, hence no PY_SCIP_CALL
-        cdef int i
-        for i in range(ndivechgsides):
-            if divechgsidetypes[i] == SCIP_SIDETYPE_LEFT:
-                SCIPchgRowLhsDive(scip, divechgrows[i], divechgsides[i])
-            else:
-                SCIPchgRowRhsDive(scip, divechgrows[i], divechgsides[i])
+        else:
+            raise TypeError("Transformed var does not exist. " + var.name)
 
-
+    def freeRowsSidesArrays(self):
+        free(self.lhs)
+        free(self.rhs)
 
     # Probing methods (Probing is tree based)
     def startProbing(self):

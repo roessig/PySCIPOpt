@@ -626,6 +626,7 @@ cdef extern from "scip/scip.h":
     SCIP_Real SCIPvarGetUbLocal(SCIP_VAR* var)
     SCIP_Real SCIPvarGetObj(SCIP_VAR* var)
     SCIP_Real SCIPvarGetLPSol(SCIP_VAR* var)
+    SCIP_VAR* SCIPvarGetTransVar(SCIP_VAR* var)
 
     # LP Methods
     SCIP_RETCODE SCIPgetLPColsData(SCIP* scip, SCIP_COL*** cols, int* ncols)
@@ -1478,6 +1479,8 @@ cdef extern from "scip/pub_lp.h":
     int SCIProwGetNLPNonz(SCIP_ROW* row)
     SCIP_COL** SCIProwGetCols(SCIP_ROW* row)
     SCIP_Real* SCIProwGetVals(SCIP_ROW* row)
+    int SCIProwGetIndex(SCIP_ROW* row)
+
     # Column Methods
     int SCIPcolGetLPPos(SCIP_COL* col)
     SCIP_BASESTAT SCIPcolGetBasisStatus(SCIP_COL* col)
@@ -1486,3 +1489,5 @@ cdef extern from "scip/pub_lp.h":
     SCIP_Real SCIPcolGetPrimsol(SCIP_COL* col)
     SCIP_Real SCIPcolGetLb(SCIP_COL* col)
     SCIP_Real SCIPcolGetUb(SCIP_COL* col)
+    SCIP_ROW** SCIPcolGetRows(SCIP_COL* col)
+    int SCIPcolGetNNonz(SCIP_COL* col)
