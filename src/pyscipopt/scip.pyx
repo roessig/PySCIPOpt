@@ -616,7 +616,7 @@ cdef class Model:
 
     cdef SCIP_Real* lhs
     cdef SCIP_Real* rhs
-
+    cdef SCIP_Bool* vars_activated
 
 
     def __init__(self, problemName='model', defaultPlugins=True):
@@ -2945,28 +2945,30 @@ cdef class Model:
         """returns if the current node is already solved and only propagated again."""
         return SCIPinRepropagation(self._scip)
 
-    def relaxAllConss(self):
+    def relaxAllConssDive(self):
         """In diving mode, set the bounds to infinity for all constraints. Must only be called when SCIP is in
         diving mode.
 
         """
         cdef SCIP_ROW** rows
         cdef int nrows
-        cdef int max_ind = 0
+        cdef int max_index = 0
         cdef int i
 
         PY_SCIP_CALL(SCIPgetLPRowsData(self._scip, &rows, &nrows))
 
         for i in range(nrows):
-            if SCIProwGetIndex(rows[i]) > max_ind:
-                max_ind = SCIProwGetIndex(rows[i])
+            if SCIProwGetIndex(rows[i]) > max_index:
+                max_index = SCIProwGetIndex(rows[i])
 
-        self.lhs = <SCIP_Real*> malloc((max_ind + 1) * sizeof(SCIP_Real))
-        self.rhs = <SCIP_Real*> malloc((max_ind + 1) * sizeof(SCIP_Real))
+        self.lhs = <SCIP_Real*> malloc((max_index + 1) * sizeof(SCIP_Real))
+        self.rhs = <SCIP_Real*> malloc((max_index + 1) * sizeof(SCIP_Real))
 
         for i in range(nrows):
             self.lhs[SCIProwGetIndex(rows[i])] = SCIProwGetLhs(rows[i])
             self.rhs[SCIProwGetIndex(rows[i])] = SCIProwGetRhs(rows[i])
+            #print("old lhs", SCIProwGetLhs(rows[i]), "old rhs", SCIProwGetRhs(rows[i]))
+
             SCIPchgRowLhsDive(self._scip, rows[i], -SCIPinfinity(self._scip))
             SCIPchgRowRhsDive(self._scip, rows[i], SCIPinfinity(self._scip))
 
@@ -2975,39 +2977,53 @@ cdef class Model:
         cdef SCIP_VAR** _vars = SCIPgetVars(self._scip)
         cdef int _nvars = SCIPgetNVars(self._scip)
         cdef int i
+        cdef int max_index = 0
 
         for i in range(_nvars):
-            PY_SCIP_CALL(SCIPchgVarLbDive(self._scip, _vars[i], 0.0))
-            PY_SCIP_CALL(SCIPchgVarUbDive(self._scip, _vars[i], 0.0))
+            if SCIPvarGetIndex(_vars[i]) > max_index:
+                max_index = SCIPvarGetIndex(_vars[i])
+            SCIPchgVarLbDive(self._scip, _vars[i], 0.0)
+            SCIPchgVarUbDive(self._scip, _vars[i], 0.0)
+
+        self.vars_activated = <SCIP_Bool*> malloc((max_index + 1) * sizeof(SCIP_Bool))
+        for i in range(max_index):
+            self.vars_activated[i] = False
+
 
     def enableVarAndConssDive(self, Variable var):
 
-        cdef int ndivechgsides
-        cdef SCIP_Real* divechgsides
-        cdef SCIP_ROW** divechgrows
-        cdef SCIP_SIDETYPE* divechgsidetypes
-
-
         PY_SCIP_CALL(SCIPchgVarLbDive(self._scip, var.var, SCIPvarGetLbLocal(var.var)))
         PY_SCIP_CALL(SCIPchgVarUbDive(self._scip, var.var, SCIPvarGetUbLocal(var.var)))
-        #PY_SCIP_CALL(SCIPgetLPRowChgsDive(self._scip, &ndivechgsides, &divechgsides, &divechgsidetypes, &divechgrows))
-
+        #print("activate var", var.name, SCIPvarGetLbLocal(var.var), SCIPvarGetUbLocal(var.var))
         cdef SCIP_COL* col
         cdef SCIP_VAR* t_var = SCIPvarGetTransVar(var.var)
         cdef SCIP_ROW** rows
-        if SCIPvarIsInLP(t_var):
-            col = SCIPvarGetCol(t_var)
-            rows = SCIPcolGetRows(col)
-            for i in range(SCIPcolGetNNonz(col)):
-                SCIPchgRowLhsDive(self._scip, rows[i], self.lhs[SCIProwGetIndex(rows[i])])
-                SCIPchgRowRhsDive(self._scip, rows[i], self.rhs[SCIProwGetIndex(rows[i])])
+        cdef SCIP_COL** cols_of_row
+        cdef SCIP_Bool use_row
 
-        else:
-            raise TypeError("Transformed var does not exist. " + var.name)
+        self.vars_activated[SCIPvarGetIndex(t_var)] = True
+
+        col = SCIPvarGetCol(t_var)
+        rows = SCIPcolGetRows(col)
+        for i in range(SCIPcolGetNNonz(col)):
+            use_row = 1
+            cols_of_row = SCIProwGetCols(rows[i])
+            #print(SCIProwGetName(rows[i]))
+            for j in range(SCIProwGetNNonz(rows[i])):
+                #print(SCIPvarGetName(SCIPcolGetVar(cols_of_row[j])), self.vars_activated[SCIPvarGetIndex(SCIPcolGetVar(cols_of_row[j]))])
+                if self.vars_activated[SCIPvarGetIndex(SCIPcolGetVar(cols_of_row[j]))] == False:
+                    use_row = 0
+                    break
+            if use_row:
+                if not SCIPisInfinity(self._scip, -self.lhs[SCIProwGetIndex(rows[i])]):
+                    SCIPchgRowLhsDive(self._scip, rows[i], self.lhs[SCIProwGetIndex(rows[i])])
+                if not SCIPisInfinity(self._scip, self.rhs[SCIProwGetIndex(rows[i])]):
+                    SCIPchgRowRhsDive(self._scip, rows[i], self.rhs[SCIProwGetIndex(rows[i])])
 
     def freeRowsSidesArrays(self):
         free(self.lhs)
         free(self.rhs)
+        free(self.vars_activated)
 
     # Probing methods (Probing is tree based)
     def startProbing(self):
