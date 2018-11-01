@@ -618,7 +618,6 @@ cdef class Model:
     cdef SCIP_Real* rhs
     cdef SCIP_Bool* vars_activated
 
-
     def __init__(self, problemName='model', defaultPlugins=True):
         """
         :param problemName: name of the problem (default 'model')
@@ -2965,12 +2964,15 @@ cdef class Model:
         self.rhs = <SCIP_Real*> malloc((max_index + 1) * sizeof(SCIP_Real))
 
         for i in range(nrows):
-            self.lhs[SCIProwGetIndex(rows[i])] = SCIProwGetLhs(rows[i])
-            self.rhs[SCIProwGetIndex(rows[i])] = SCIProwGetRhs(rows[i])
-            #print("old lhs", SCIProwGetLhs(rows[i]), "old rhs", SCIProwGetRhs(rows[i]))
+            if SCIProwIsInLP(rows[i]):
+                self.lhs[SCIProwGetIndex(rows[i])] = SCIProwGetLhs(rows[i])
+                self.rhs[SCIProwGetIndex(rows[i])] = SCIProwGetRhs(rows[i])
+                SCIPchgRowLhsDive(self._scip, rows[i], -SCIPinfinity(self._scip))
+                SCIPchgRowRhsDive(self._scip, rows[i], SCIPinfinity(self._scip))
 
-            SCIPchgRowLhsDive(self._scip, rows[i], -SCIPinfinity(self._scip))
-            SCIPchgRowRhsDive(self._scip, rows[i], SCIPinfinity(self._scip))
+            else:
+                print("old lhs", SCIProwGetLhs(rows[i]), "old rhs", SCIProwGetRhs(rows[i]))
+
 
     def fixAllVariablesToZeroDive(self):
         """Fixes all (transformed) variables to zero in diving mode. Must only be called when SCIP is in diving mode."""
@@ -2986,7 +2988,7 @@ cdef class Model:
             SCIPchgVarUbDive(self._scip, _vars[i], 0.0)
 
         self.vars_activated = <SCIP_Bool*> malloc((max_index + 1) * sizeof(SCIP_Bool))
-        for i in range(max_index):
+        for i in range(max_index + 1):
             self.vars_activated[i] = False
 
 
@@ -3006,11 +3008,14 @@ cdef class Model:
         col = SCIPvarGetCol(t_var)
         rows = SCIPcolGetRows(col)
         for i in range(SCIPcolGetNNonz(col)):
+            if not SCIProwIsInLP(rows[i]):
+                #print("not in LP")
+                continue
             use_row = 1
             cols_of_row = SCIProwGetCols(rows[i])
-            #print(SCIProwGetName(rows[i]))
+            #print("row", SCIProwGetName(rows[i]))
             for j in range(SCIProwGetNNonz(rows[i])):
-                #print(SCIPvarGetName(SCIPcolGetVar(cols_of_row[j])), self.vars_activated[SCIPvarGetIndex(SCIPcolGetVar(cols_of_row[j]))])
+                #print(SCIPvarGetIndex(SCIPcolGetVar(cols_of_row[j])), SCIPvarGetName(SCIPcolGetVar(cols_of_row[j])), self.vars_activated[SCIPvarGetIndex(SCIPcolGetVar(cols_of_row[j]))])
                 if self.vars_activated[SCIPvarGetIndex(SCIPcolGetVar(cols_of_row[j]))] == False:
                     use_row = 0
                     break

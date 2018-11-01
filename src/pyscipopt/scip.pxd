@@ -1482,6 +1482,7 @@ cdef extern from "scip/pub_lp.h":
     SCIP_Real* SCIProwGetVals(SCIP_ROW* row)
     int SCIProwGetIndex(SCIP_ROW* row)
     const char* SCIProwGetName(SCIP_ROW* row)
+    SCIP_Bool SCIProwIsInLP(SCIP_ROW* row)
 
     # Column Methods
     int SCIPcolGetLPPos(SCIP_COL* col)
