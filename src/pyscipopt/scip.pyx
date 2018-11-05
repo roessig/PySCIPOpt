@@ -1082,8 +1082,7 @@ cdef class Model:
         cdef SCIP_Bool tightened
         PY_SCIP_CALL(SCIPtightenVarUb(self._scip, var.var, ub, force, &infeasible, &tightened))
         return tightened
-    
-    
+
     def tightenVarUbGlobal(self, Variable var, ub, force=False):
         """Tighten the global upper bound, if the bound is tighter.
         :param var: SCIP variable
@@ -1106,7 +1105,7 @@ cdef class Model:
         cdef SCIP_Bool infeasible
         cdef SCIP_Bool tightened
         PY_SCIP_CALL(SCIPtightenVarLbGlobal(self._scip, var.var, lb, force, &infeasible, &tightened))
-        return tightened
+        return tightened, infeasible
 
     def chgVarLb(self, Variable var, lb):
         """Changes the lower bound of the specified variable.
@@ -2991,7 +2990,6 @@ cdef class Model:
         for i in range(max_index + 1):
             self.vars_activated[i] = False
 
-
     def enableVarAndConssDive(self, Variable var):
 
         PY_SCIP_CALL(SCIPchgVarLbDive(self._scip, var.var, SCIPvarGetLbLocal(var.var)))
@@ -3029,6 +3027,103 @@ cdef class Model:
         free(self.lhs)
         free(self.rhs)
         free(self.vars_activated)
+
+    cdef includeVarGenVBound(self, SCIP_VAR* var):
+        cdef SCIP_Real redcost
+        if SCIPvarGetStatus(var) != SCIP_VARSTATUS_COLUMN:
+           return False
+
+        redcost = SCIPgetVarRedcost(self._scip, var)
+        if redcost == <double> 1e99:
+           return False
+
+        if redcost < SCIPdualfeastol(self._scip) and redcost > -SCIPdualfeastol(self._scip):
+           return False
+
+        return True
+
+
+    def createGenVBound(self, Variable var, prop_name, Row cutoffrow, is_lowerbound):
+        """
+        :param var:
+        :param is_lowerbound: bool, True if the lower bound should be added, False for upper bound
+        :return:
+        """
+        cdef SCIP_VAR** vars
+        cdef SCIP_VAR** genvboundvars
+        cdef SCIP_Real* genvboundcoefs
+        cdef SCIP_Real gamma_dual
+        cdef int k
+        cdef int ncoefs
+        cdef int nvars = SCIPgetNVars(self._scip)
+
+        cdef SCIP_Bool addgenvbound                # if everything is fine with the redcosts and the bounds, add the genvbound */
+        cdef SCIP_Real c                           # helper variable to calculate constant term in genvbound */
+        cdef int idx
+        cdef SCIP_Real redcost
+        cdef SCIP_PROPDATA* propdata
+        cdef SCIP_VAR* xk
+
+        if SCIPisZero(self._scip, SCIPgetVarRedcost(self._scip, var.var)):
+
+
+            vars = SCIPgetVars(self._scip)
+
+            # count nonzero coefficients in genvbound */
+            ncoefs = 0
+            for k in range(nvars):
+                if self.includeVarGenVBound(vars[k]):
+                    assert(vars[k] != var.var)
+                    ncoefs += 1
+
+            # get dual multiplier for the objective cutoff (set to zero if there is no) */
+            if cutoffrow.row == NULL:
+                gamma_dual = 0.0
+            else:
+                assert not SCIPisInfinity(self._scip, SCIPgetCutoffbound(self._scip))
+                gamma_dual = -SCIProwGetDualsol(cutoffrow.row)
+
+            # we need at least one nonzero coefficient or a nonzero dual multiplier for the objective cutoff */
+            if ncoefs > 0 or not SCIPisZero(self._scip, gamma_dual):
+                                         # variable for indexing genvbound's coefficients array */
+
+                # add the bound if the bool is still TRUE after the loop */
+                addgenvbound = True
+                # allocate memory for storing the genvbounds right-hand side variables and coefficients */
+                genvboundvars = <SCIP_VAR**> malloc(ncoefs * sizeof(SCIP_VAR*))
+                genvboundcoefs = <SCIP_Real*> malloc(ncoefs * sizeof(SCIP_Real))
+
+                c = SCIPgetLPObjval(self._scip)
+                c += SCIPgetCutoffbound(self._scip) * gamma_dual
+
+                idx = 0
+                for k in range(nvars):
+                    xk = vars[k]
+                    if self.includeVarGenVBound(xk):
+                        redcost = SCIPgetVarRedcost(self._scip, xk)
+
+                        if ((redcost > SCIPdualfeastol(self._scip)) and SCIPisInfinity(self._scip, -SCIPvarGetLbLocal(xk)) ) or\
+                                ((redcost < -SCIPdualfeastol(self._scip)) and SCIPisInfinity(self._scip, SCIPvarGetUbLocal(xk))):
+                            addgenvbound = False
+                            break
+
+                    # store coefficients */
+                    assert(idx < ncoefs);
+                    genvboundvars[idx] = xk
+                    genvboundcoefs[idx] = redcost
+                    idx += 1
+
+                    # if redcost > 0, then redcost = alpha_k, otherwise redcost = - beta_k */
+                    c -= redcost * SCIPvarGetLbLocal(xk) if redcost > 0 else redcost * SCIPvarGetUbLocal(xk)
+
+                if addgenvbound and not SCIPisInfinity(self._scip, -c):
+                    SCIPgenVBoundAdd(self._scip, SCIPfindProp(self._scip, str_conversion(prop_name)),
+                                     genvboundvars, var.var, genvboundcoefs, ncoefs,
+                       0.0 if not SCIPisPositive(self._scip, gamma_dual) else -gamma_dual, c,
+                                            SCIP_BOUNDTYPE_LOWER if is_lowerbound else SCIP_BOUNDTYPE_UPPER)
+                free(genvboundcoefs)
+                free(genvboundvars)
+
 
     # Probing methods (Probing is tree based)
     def startProbing(self):

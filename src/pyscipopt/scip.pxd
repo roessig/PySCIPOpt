@@ -20,6 +20,8 @@ cdef extern from "scip/scip.h":
         SCIP_KEYALREADYEXISTING = -15
         SCIP_MAXDEPTHLEVEL      = -16
 
+    DEF SCIP_INVALID = 1e99
+
     ctypedef enum SCIP_VARTYPE:
         SCIP_VARTYPE_BINARY     = 0
         SCIP_VARTYPE_INTEGER    = 1
@@ -33,6 +35,15 @@ cdef extern from "scip/scip.h":
     ctypedef enum SCIP_BOUNDTYPE:
         SCIP_BOUNDTYPE_LOWER = 0
         SCIP_BOUNDTYPE_UPPER = 1
+
+    ctypedef enum SCIP_VARSTATUS:
+        SCIP_VARSTATUS_ORIGINAL   = 0
+        SCIP_VARSTATUS_LOOSE      = 1
+        SCIP_VARSTATUS_COLUMN     = 2
+        SCIP_VARSTATUS_FIXED      = 3
+        SCIP_VARSTATUS_AGGREGATED = 4
+        SCIP_VARSTATUS_MULTAGGR   = 5
+        SCIP_VARSTATUS_NEGATED = 6
 
     ctypedef enum SCIP_RESULT:
         SCIP_DIDNOTRUN   =   1
@@ -555,6 +566,8 @@ cdef extern from "scip/scip.h":
     SCIP_STATUS SCIPgetStatus(SCIP* scip)
     SCIP_Real SCIPepsilon(SCIP* scip)
     SCIP_Real SCIPfeastol(SCIP* scip)
+    SCIP_Real SCIPgetCutoffbound(SCIP* scip)
+    SCIP_RETCODE SCIPupdateCutoffbound(SCIP* scip, SCIP_Real cutoffbound)
 
     # Solve Methods
     SCIP_RETCODE SCIPsolve(SCIP* scip)
@@ -575,6 +588,7 @@ cdef extern from "scip/scip.h":
     SCIP_Bool SCIPnodeIsPropagatedAgain(SCIP_NODE* node)
     SCIP_RETCODE SCIPcreateChild(SCIP* scip, SCIP_NODE** node, SCIP_Real nodeselprio, SCIP_Real estimate)
     SCIP_Bool SCIPinRepropagation(SCIP* scip)
+    SCIP_PROP* SCIPfindProp(SCIP* scip, const char* name)
 
     # Variable Methods
     SCIP_RETCODE SCIPcreateVarBasic(SCIP* scip,
@@ -628,6 +642,9 @@ cdef extern from "scip/scip.h":
     SCIP_Real SCIPvarGetLPSol(SCIP_VAR* var)
     SCIP_VAR* SCIPvarGetTransVar(SCIP_VAR* var)
     int SCIPvarGetIndex(SCIP_VAR* var)
+    SCIP_VARSTATUS SCIPvarGetStatus(SCIP_VAR* var)
+    SCIP_RETCODE SCIPgenVBoundAdd(SCIP* scip, SCIP_PROP* genvboundprop, SCIP_VAR** vars, SCIP_VAR* var, SCIP_Real* coefs,
+                                  int ncoefs, SCIP_Real coefcutoffbound, SCIP_Real constant, SCIP_BOUNDTYPE boundtype)
 
     # LP Methods
     SCIP_RETCODE SCIPgetLPColsData(SCIP* scip, SCIP_COL*** cols, int* ncols)
@@ -642,6 +659,7 @@ cdef extern from "scip/scip.h":
     SCIP_LPSOLSTAT SCIPgetLPSolstat(SCIP* scip)
     int SCIPgetNLPRows(SCIP* scip)
     int SCIPgetNLPCols(SCIP* scip)
+    SCIP_Real SCIPdualfeastol(SCIP* scip)
 
     # Cutting Plane Methods
     SCIP_RETCODE SCIPaddPoolCut(SCIP* scip, SCIP_ROW* row)
@@ -719,6 +737,7 @@ cdef extern from "scip/scip.h":
     SCIP_RETCODE SCIPflushRowExtensions(SCIP* scip, SCIP_ROW* row)
     SCIP_RETCODE SCIPaddVarToRow(SCIP* scip, SCIP_ROW* row, SCIP_VAR* var, SCIP_Real val)
     SCIP_RETCODE SCIPprintRow(SCIP* scip, SCIP_ROW* row, FILE* file)
+    SCIP_Real SCIProwGetDualsol(SCIP_ROW* row)
 
     # Dual Solution Methods
     SCIP_Real SCIPgetDualbound(SCIP* scip)
@@ -1051,6 +1070,7 @@ cdef extern from "scip/scip.h":
     SCIP_Bool SCIPisLT(SCIP* scip, SCIP_Real val1, SCIP_Real val2)
     SCIP_Bool SCIPisGE(SCIP* scip, SCIP_Real val1, SCIP_Real val2)
     SCIP_Bool SCIPisGT(SCIP* scip, SCIP_Real val1, SCIP_Real val2)
+    SCIP_Bool SCIPisPositive(SCIP* scip, SCIP_Real val)
 
     # Statistic Methods
     SCIP_RETCODE SCIPprintStatistics(SCIP* scip, FILE* outfile)
