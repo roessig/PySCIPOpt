@@ -3034,7 +3034,7 @@ cdef class Model:
            return False
 
         redcost = SCIPgetVarRedcost(self._scip, var)
-        if redcost == <double> 1e99:
+        if redcost == <double> 1e99:   # this is SCIP_INVALID
            return False
 
         if redcost < SCIPdualfeastol(self._scip) and redcost > -SCIPdualfeastol(self._scip):
@@ -3049,6 +3049,8 @@ cdef class Model:
         :param is_lowerbound: bool, True if the lower bound should be added, False for upper bound
         :return:
         """
+
+        #print("in Function createGenVBound", var.name, "lower bound", is_lowerbound)
         cdef SCIP_VAR** vars
         cdef SCIP_VAR** genvboundvars
         cdef SCIP_Real* genvboundcoefs
@@ -3060,13 +3062,11 @@ cdef class Model:
         cdef SCIP_Bool addgenvbound                # if everything is fine with the redcosts and the bounds, add the genvbound */
         cdef SCIP_Real c                           # helper variable to calculate constant term in genvbound */
         cdef int idx
-        cdef SCIP_Real redcost
+        cdef SCIP_Real redcost = 0.0
         cdef SCIP_PROPDATA* propdata
         cdef SCIP_VAR* xk
 
         if SCIPisZero(self._scip, SCIPgetVarRedcost(self._scip, var.var)):
-
-
             vars = SCIPgetVars(self._scip)
 
             # count nonzero coefficients in genvbound */
@@ -3089,6 +3089,7 @@ cdef class Model:
 
                 # add the bound if the bool is still TRUE after the loop */
                 addgenvbound = True
+                assert SCIPisZero(self._scip, SCIPgetVarRedcost(self._scip, var.var))
                 # allocate memory for storing the genvbounds right-hand side variables and coefficients */
                 genvboundvars = <SCIP_VAR**> malloc(ncoefs * sizeof(SCIP_VAR*))
                 genvboundcoefs = <SCIP_Real*> malloc(ncoefs * sizeof(SCIP_Real))
@@ -3107,22 +3108,48 @@ cdef class Model:
                             addgenvbound = False
                             break
 
-                    # store coefficients */
-                    assert(idx < ncoefs);
-                    genvboundvars[idx] = xk
-                    genvboundcoefs[idx] = redcost
-                    idx += 1
+                        # store coefficients */
+                        assert(idx < ncoefs), "idx " + str(idx) + ", ncoefs" + str(ncoefs)
+                        genvboundvars[idx] = xk
+                        genvboundcoefs[idx] = redcost
+                        idx += 1
+                        print(SCIPvarGetName(xk), redcost, var.name)
 
-                    # if redcost > 0, then redcost = alpha_k, otherwise redcost = - beta_k */
-                    c -= redcost * SCIPvarGetLbLocal(xk) if redcost > 0 else redcost * SCIPvarGetUbLocal(xk)
+                        # if redcost > 0, then redcost = alpha_k, otherwise redcost = - beta_k */
+                        assert redcost <= 0 or not SCIPisInfinity(self._scip, -SCIPvarGetLbLocal(xk))
+                        assert redcost >= 0 or not SCIPisInfinity(self._scip, SCIPvarGetUbLocal(xk))
+                        c -= redcost * SCIPvarGetLbLocal(xk) if redcost > 0 else redcost * SCIPvarGetUbLocal(xk)
 
                 if addgenvbound and not SCIPisInfinity(self._scip, -c):
+                    print("add genvbound for ", var.name)
                     SCIPgenVBoundAdd(self._scip, SCIPfindProp(self._scip, str_conversion(prop_name)),
                                      genvboundvars, var.var, genvboundcoefs, ncoefs,
                        0.0 if not SCIPisPositive(self._scip, gamma_dual) else -gamma_dual, c,
                                             SCIP_BOUNDTYPE_LOWER if is_lowerbound else SCIP_BOUNDTYPE_UPPER)
                 free(genvboundcoefs)
                 free(genvboundvars)
+
+
+    def addSingleObjCutoffDive(self, Variable obj_var, cutoff_value):
+        """Add objective cutoff in diving mode. Only supports objectives consisting of one nonzero variable obj_var.
+        Must only be called when in diving mode.
+
+        Args:
+             obj_var: Variable, the nonzero variable in the objective function
+             cutoff_value: float, the cutoff value
+        Returns:
+            Row: the row which was added in diving mode.
+        """
+
+        cdef SCIP_ROW* row
+        cdef SCIP_VAR** vars
+        PY_SCIP_CALL(SCIPcreateEmptyRowUnspec(self._scip, &row, str_conversion("obbt_dive_cutoff"),
+                            -SCIPinfinity(self._scip), cutoff_value, False, False, False))
+        PY_SCIP_CALL(SCIPcacheRowExtensions(self._scip, row))
+        PY_SCIP_CALL(SCIPaddVarToRow(self._scip, row, obj_var.var, SCIPvarGetObj(obj_var.var)))
+        PY_SCIP_CALL(SCIPflushRowExtensions(self._scip, row))
+        PY_SCIP_CALL(SCIPaddRowDive(self._scip, row))
+        return Row.create(row)
 
 
     # Probing methods (Probing is tree based)
