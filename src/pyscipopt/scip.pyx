@@ -380,6 +380,7 @@ cdef class Solution:
         sol.sol = scip_sol
         return sol
 
+
 cdef class Node:
     """Base class holding a pointer to corresponding SCIP_NODE"""
     cdef SCIP_NODE* node
@@ -758,6 +759,27 @@ cdef class Model:
     def isGT(self, val1, val2):
         """returns whether val1 > val2 + eps"""
         return SCIPisGT(self._scip, val1, val2)
+
+    def isFeasGE(self, val1, val2):
+        """checks, if relative difference of val1 and val2 is not lower than -feastol """
+        return SCIPisFeasGE(self._scip, val1, val2)
+
+    def isFeasLE(self, val1, val2):
+        """checks, if relative difference of val1 and val2 is not greater than feastol"""
+        return SCIPisFeasLE(self._scip, val1, val2)
+
+    def isFeasEQ(self, val1, val2):
+        """checks, if relative difference of values is in range of feastol"""
+        return SCIPisFeasEQ(self._scip, val1, val2)
+
+    def isFeasLT(self, val1, val2):
+        """checks, if relative difference val1 and val2 is lower than feastol"""
+        return SCIPisFeasLT(self._scip, val1, val2)
+
+    def isFeasGT(self, val1, val2):
+        """checks, if relative difference of val1 and val2 is greater than feastol"""
+        return SCIPisFeasGT(self._scip, val1, val2)
+
 
     def getCondition(self, exact=False):
         """Get the current LP's condition number
@@ -1176,10 +1198,12 @@ cdef class Model:
 
     def chgVarLbTighten(self, Variable var, lb):
         if SCIPisGT(self._scip, lb, SCIPvarGetLbLocal(var.var)):
+            #print("chgVarLbTighten", var.name)
             PY_SCIP_CALL(SCIPchgVarLb(self._scip, var.var, lb))
 
     def chgVarUbTighten(self, Variable var, ub):
         if SCIPisLT(self._scip, ub, SCIPvarGetUbLocal(var.var)):
+            #print("chgVarLbTighten", var.name)
             PY_SCIP_CALL(SCIPchgVarUb(self._scip, var.var, ub))
 
     def updateNodeLowerbound(self, Node node, lb):
@@ -2943,6 +2967,7 @@ cdef class Model:
         """returns if the current node is already solved and only propagated again."""
         return SCIPinRepropagation(self._scip)
 
+
     def relaxAllConssDive(self):
         """In diving mode, set the bounds to infinity for all constraints. Must only be called when SCIP is in
         diving mode.
@@ -2964,6 +2989,7 @@ cdef class Model:
 
         for i in range(nrows):
             if SCIProwIsInLP(rows[i]):
+                #print("relax Row", SCIProwGetName(rows[i]))
                 self.lhs[SCIProwGetIndex(rows[i])] = SCIProwGetLhs(rows[i])
                 self.rhs[SCIProwGetIndex(rows[i])] = SCIProwGetRhs(rows[i])
                 SCIPchgRowLhsDive(self._scip, rows[i], -SCIPinfinity(self._scip))
@@ -2989,6 +3015,7 @@ cdef class Model:
         self.vars_activated = <SCIP_Bool*> malloc((max_index + 1) * sizeof(SCIP_Bool))
         for i in range(max_index + 1):
             self.vars_activated[i] = False
+
 
     def enableVarAndConssDive(self, Variable var):
 
@@ -3042,7 +3069,6 @@ cdef class Model:
 
         return True
 
-
     def createGenVBound(self, Variable var, prop_name, Row cutoffrow, is_lowerbound):
         """
         :param var:
@@ -3050,7 +3076,7 @@ cdef class Model:
         :return:
         """
 
-        #print("in Function createGenVBound", var.name, "lower bound", is_lowerbound)
+        print("in Function createGenVBound", var.name, "lower bound", is_lowerbound)
         cdef SCIP_VAR** vars
         cdef SCIP_VAR** genvboundvars
         cdef SCIP_Real* genvboundcoefs
