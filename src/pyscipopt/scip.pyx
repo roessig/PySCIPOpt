@@ -517,7 +517,6 @@ cdef class Variable(Expr):
         """Retrieve the current LP solution value of variable"""
         return SCIPvarGetLPSol(self.var)
 
-
 cdef class Constraint:
     cdef SCIP_CONS* cons
     cdef public object data #storage for python user
@@ -779,7 +778,6 @@ cdef class Model:
     def isFeasGT(self, val1, val2):
         """checks, if relative difference of val1 and val2 is greater than feastol"""
         return SCIPisFeasGT(self._scip, val1, val2)
-
 
     def getCondition(self, exact=False):
         """Get the current LP's condition number
@@ -1197,13 +1195,11 @@ cdef class Model:
         PY_SCIP_CALL(SCIPchgVarUbNode(self._scip, node.node, var.var, ub))
 
     def chgVarLbTighten(self, Variable var, lb):
-        if SCIPisGT(self._scip, lb, SCIPvarGetLbLocal(var.var)):
-            #print("chgVarLbTighten", var.name)
+        if SCIPisGT(self._scip, lb, SCIPvarGetLbLocal(var.var)) and SCIPisFeasLE(self._scip, lb, SCIPvarGetUbLocal(var.var)):
             PY_SCIP_CALL(SCIPchgVarLb(self._scip, var.var, lb))
 
     def chgVarUbTighten(self, Variable var, ub):
-        if SCIPisLT(self._scip, ub, SCIPvarGetUbLocal(var.var)):
-            #print("chgVarLbTighten", var.name)
+        if SCIPisLT(self._scip, ub, SCIPvarGetUbLocal(var.var)) and SCIPisFeasGE(self._scip, ub, SCIPvarGetLbLocal(var.var)):
             PY_SCIP_CALL(SCIPchgVarUb(self._scip, var.var, ub))
 
     def updateNodeLowerbound(self, Node node, lb):
@@ -2913,6 +2909,10 @@ cdef class Model:
         """Quits probing and resets bounds and constraints to the focus node's environment"""
         PY_SCIP_CALL(SCIPendDive(self._scip))
 
+    def inDive(self):
+        """returns whether we are in diving mode"""
+        return SCIPinDive(self._scip)
+
     def chgVarObjDive(self, Variable var, newobj):
         """changes (column) variable's objective value in current dive"""
         PY_SCIP_CALL(SCIPchgVarObjDive(self._scip, var.var, newobj))
@@ -2962,6 +2962,10 @@ cdef class Model:
 
         PY_SCIP_CALL(SCIPsolveDiveLP(self._scip, itlim, &lperror, &cutoff))
         return lperror, cutoff
+
+    def chgCutoffboundDive(self, newcutoffbound):
+        """Change cutoff bound in current dive"""
+        PY_SCIP_CALL(SCIPchgCutoffboundDive(self._scip, newcutoffbound))
 
     def inRepropagation(self):
         """returns if the current node is already solved and only propagated again."""
@@ -3202,7 +3206,6 @@ cdef class Model:
 
     def inProbing(self):
         return SCIPinProbing(self._scip)
-
 
     def solveProbingLP(self, itlim = -1):
         """solves the LP at the current probing node (cannot be applied at preprocessing stage)

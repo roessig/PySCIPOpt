@@ -488,6 +488,8 @@ cdef extern from "scip/scip.h":
     SCIP_RETCODE SCIPendDive(SCIP* scip)
     SCIP_RETCODE SCIPgetLPRowChgsDive(SCIP* scip, int* ndivechgsides, SCIP_Real** divechgsides,
                                       SCIP_SIDETYPE** divechgsidetypes, SCIP_ROW*** divechgrows)
+    SCIP_Bool SCIPinDive(SCIP* scip)
+    SCIP_RETCODE SCIPchgCutoffboundDive(SCIP* scip, SCIP_Real newcutoffbound)
 
     # Probing methods
     SCIP_RETCODE SCIPstartProbing(SCIP* scip)
