@@ -1198,6 +1198,7 @@ cdef class Model:
         if SCIPisGT(self._scip, lb, SCIPvarGetLbLocal(var.var)) and SCIPisFeasLE(self._scip, lb, SCIPvarGetUbLocal(var.var)):
             PY_SCIP_CALL(SCIPchgVarLb(self._scip, var.var, lb))
 
+
     def chgVarUbTighten(self, Variable var, ub):
         if SCIPisLT(self._scip, ub, SCIPvarGetUbLocal(var.var)) and SCIPisFeasGE(self._scip, ub, SCIPvarGetLbLocal(var.var)):
             PY_SCIP_CALL(SCIPchgVarUb(self._scip, var.var, ub))
@@ -2394,7 +2395,7 @@ cdef class Model:
         cdef SCIP_Real* _vals
         cdef SCIP_Bool _success
 
-        if self.version() > 6.0:
+        if self.version() >= 6.0:
             PY_SCIP_CALL( SCIPgetDualSolVal(self._scip, cons.cons, &dualsolval, &boundconstraint) )
             return dualsolval
         else:
@@ -3054,6 +3055,7 @@ cdef class Model:
                 if not SCIPisInfinity(self._scip, self.rhs[SCIProwGetIndex(rows[i])]):
                     SCIPchgRowRhsDive(self._scip, rows[i], self.rhs[SCIProwGetIndex(rows[i])])
 
+
     def freeRowsSidesArrays(self):
         free(self.lhs)
         free(self.rhs)
@@ -3080,7 +3082,7 @@ cdef class Model:
         :return:
         """
 
-        print("in Function createGenVBound", var.name, "lower bound", is_lowerbound)
+        print("in Function createGenVBound", var.name, "is lower bound", is_lowerbound)
         cdef SCIP_VAR** vars
         cdef SCIP_VAR** genvboundvars
         cdef SCIP_Real* genvboundcoefs
@@ -3116,7 +3118,6 @@ cdef class Model:
             # we need at least one nonzero coefficient or a nonzero dual multiplier for the objective cutoff */
             if ncoefs > 0 or not SCIPisZero(self._scip, gamma_dual):
                                          # variable for indexing genvbound's coefficients array */
-
                 # add the bound if the bool is still TRUE after the loop */
                 addgenvbound = True
                 assert SCIPisZero(self._scip, SCIPgetVarRedcost(self._scip, var.var))
@@ -3125,7 +3126,9 @@ cdef class Model:
                 genvboundcoefs = <SCIP_Real*> malloc(ncoefs * sizeof(SCIP_Real))
 
                 c = SCIPgetLPObjval(self._scip)
+                #print("c start", c)
                 c += SCIPgetCutoffbound(self._scip) * gamma_dual
+                print(SCIPgetCutoffbound(self._scip) , gamma_dual)
 
                 idx = 0
                 for k in range(nvars):
@@ -3143,19 +3146,35 @@ cdef class Model:
                         genvboundvars[idx] = xk
                         genvboundcoefs[idx] = redcost
                         idx += 1
-                        print(SCIPvarGetName(xk), redcost, var.name)
+                        #print(SCIPvarGetName(xk), redcost, var.name)
 
                         # if redcost > 0, then redcost = alpha_k, otherwise redcost = - beta_k */
                         assert redcost <= 0 or not SCIPisInfinity(self._scip, -SCIPvarGetLbLocal(xk))
                         assert redcost >= 0 or not SCIPisInfinity(self._scip, SCIPvarGetUbLocal(xk))
                         c -= redcost * SCIPvarGetLbLocal(xk) if redcost > 0 else redcost * SCIPvarGetUbLocal(xk)
+                        #print(c, redcost, var.name)
+
 
                 if addgenvbound and not SCIPisInfinity(self._scip, -c):
-                    print("add genvbound for ", var.name)
+                    print("add genvbound for ", var.name, c, gamma_dual, is_lowerbound, SCIPvarGetLbLocal(var.var), SCIPvarGetUbLocal(var.var))
                     SCIPgenVBoundAdd(self._scip, SCIPfindProp(self._scip, str_conversion(prop_name)),
                                      genvboundvars, var.var, genvboundcoefs, ncoefs,
                        0.0 if not SCIPisPositive(self._scip, gamma_dual) else -gamma_dual, c,
                                             SCIP_BOUNDTYPE_LOWER if is_lowerbound else SCIP_BOUNDTYPE_UPPER)
+
+                    """c1 = c
+                    c2 = c
+                    for k in range(ncoefs):
+                        #print(SCIPvarGetName(genvboundvars[k]), SCIPvarGetLbLocal(genvboundvars[k]), SCIPvarGetUbLocal(genvboundvars[k]))
+                        if genvboundcoefs[k] > 0:
+                            c1 += genvboundcoefs[k] * SCIPvarGetLbLocal(genvboundvars[k])
+                            c2 += genvboundcoefs[k] * SCIPvarGetUbLocal(genvboundvars[k])
+                        else:
+                            c1 += genvboundcoefs[k] * SCIPvarGetUbLocal(genvboundvars[k])
+                            c2 += genvboundcoefs[k] * SCIPvarGetLbLocal(genvboundvars[k])
+                    #print()
+                    #print("current c", c1, c2)"""
+
                 free(genvboundcoefs)
                 free(genvboundvars)
 
