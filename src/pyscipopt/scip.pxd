@@ -265,6 +265,12 @@ cdef extern from "scip/scip.h":
         SCIP_SIDETYPE_LEFT  = 0
         SCIP_SIDETYPE_RIGHT = 1
 
+    ctypedef enum SCIP_BRANCHDIR:
+        SCIP_BRANCHDIR_DOWNWARDS = 0
+        SCIP_BRANCHDIR_UPWARDS   = 1
+        SCIP_BRANCHDIR_FIXED     = 2
+        SCIP_BRANCHDIR_AUTO      = 3
+
     ctypedef bint SCIP_Bool
 
     ctypedef long long SCIP_Longint
@@ -588,6 +594,8 @@ cdef extern from "scip/scip.h":
     SCIP_NODETYPE SCIPnodeGetType(SCIP_NODE* node)
     SCIP_Bool SCIPnodeIsActive(SCIP_NODE* node)
     SCIP_Bool SCIPnodeIsPropagatedAgain(SCIP_NODE* node)
+    SCIP_Real SCIPcalcNodeselPriority(SCIP*	scip, SCIP_VAR* var, SCIP_BRANCHDIR	branchdir, SCIP_Real targetvalue)
+    SCIP_Real SCIPcalcChildEstimate(SCIP* scip, SCIP_VAR* var, SCIP_Real targetvalue)
     SCIP_RETCODE SCIPcreateChild(SCIP* scip, SCIP_NODE** node, SCIP_Real nodeselprio, SCIP_Real estimate)
     SCIP_Bool SCIPinRepropagation(SCIP* scip)
     SCIP_PROP* SCIPfindProp(SCIP* scip, const char* name)
@@ -1031,7 +1039,6 @@ cdef extern from "scip/scip.h":
     SCIP_BENDERS** SCIPgetBenders(SCIP* scip)
     void SCIPbendersUpdateSubproblemLowerbound(SCIP_BENDERS* benders, int probnumber, SCIP_Real lowerbound)
 
-    SCIP_RETCODE SCIPgetNLPBranchCands(SCIP* scip)
     SCIP_RETCODE SCIPgetLPBranchCands(SCIP* scip,
                                         SCIP_VAR***  lpcands,
                                         SCIP_Real**  lpcandssol,
@@ -1052,6 +1059,9 @@ cdef extern from "scip/scip.h":
                                 SCIP_NODE** downchild,
                                 SCIP_NODE**  eqchild,
                                 SCIP_NODE** upchild)
+    int SCIPgetNLPBranchCands(SCIP* scip)
+    SCIP_RETCODE SCIPgetLPBranchCands(SCIP* scip, SCIP_VAR*** lpcands, SCIP_Real** lpcandssol,
+                                      SCIP_Real** lpcandsfrac, int* nlpcands, int* npriolpcands, int* nfracimplvars)
 
     SCIP_RETCODE SCIPaddConsNode(SCIP* scip,
 		                        SCIP_NODE*  node,

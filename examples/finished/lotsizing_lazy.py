@@ -1,5 +1,5 @@
 """
-lotsizing_cut.py:  solve the single-item lot-sizing problem.
+lotsizing_lazy.py:  solve the single-item lot-sizing problem.
 
 Approaches:
     - sils: solve the problem using the standard formulation
@@ -39,7 +39,7 @@ class Conshdlr_sils(Conshdlr):
                 cutsadded = True
         return cutsadded
 
-    def conscheck(self, constraints, solution, checkintegrality, checklprows, printreason):
+    def conscheck(self, constraints, solution, checkintegrality, checklprows, printreason, completely):
         if not self.addcut(checkonly = True, sol = solution):
             return {"result": SCIP_RESULT.INFEASIBLE}
         else:
@@ -51,7 +51,7 @@ class Conshdlr_sils(Conshdlr):
         else:
             return {"result": SCIP_RESULT.FEASIBLE}
 
-    def conslock(self, constraint, nlockspos, nlocksneg):
+    def conslock(self, constraint, locktype, nlockspos, nlocksneg):
         pass
 
 def sils(T,f,c,d,h):

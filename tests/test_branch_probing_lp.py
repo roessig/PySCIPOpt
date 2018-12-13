@@ -11,7 +11,6 @@ class MyBranching(Branchrule):
         self.was_called_int = False
 
     def branchexeclp(self, allowaddcons):
-        print("in branchexelp")
         self.count += 1
         if self.count >= 2:
             return {"result": SCIP_RESULT.DIDNOTRUN}
@@ -45,7 +44,7 @@ class MyBranching(Branchrule):
 m = Model()
 m.setIntParam("presolving/maxrounds", 0)
 #m.setLongintParam("lp/rootiterlim", 3)
-m.setRealParam("limits/time", 10)
+m.setRealParam("limits/time", 60)
 
 x0 = m.addVar(lb=-2, ub=4)
 r1 = m.addVar()
