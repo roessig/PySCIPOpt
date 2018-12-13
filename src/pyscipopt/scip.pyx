@@ -821,7 +821,7 @@ cdef class Model:
         """
         PY_SCIP_CALL(SCIPsetObjlimit(self._scip, objlimit))
 
-    def setObjlimit(self, objlimit):
+    def getObjlimit(self):
         """returns current limit on objective function."""
         return SCIPgetObjlimit(self._scip)
 
@@ -1405,6 +1405,7 @@ cdef class Model:
         cdef SCIP_Bool infeasible
         PY_SCIP_CALL(SCIPaddRow(self._scip, cut.row, forcecut, &infeasible))
         return infeasible
+
 
     # Constraint functions
     def addCons(self, cons, name='', initial=True, separate=True,
