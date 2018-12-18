@@ -2720,6 +2720,7 @@ cdef class Model:
         presol.model = <Model>weakref.proxy(self)
         Py_INCREF(presol)
 
+
     def includeSepa(self, Sepa sepa, name, desc, priority=0, freq=10, maxbounddist=1.0, usessubscip=False, delay=False):
         """Include a separator
 
