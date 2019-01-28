@@ -3094,11 +3094,10 @@ cdef class Model:
 
         :param var: scip variable in the model, that shall be enabled
 
-        """"
+        """
 
         PY_SCIP_CALL(SCIPchgVarLbDive(self._scip, var.var, SCIPvarGetLbLocal(var.var)))
         PY_SCIP_CALL(SCIPchgVarUbDive(self._scip, var.var, SCIPvarGetUbLocal(var.var)))
-        #print("activate var", var.name, SCIPvarGetLbLocal(var.var), SCIPvarGetUbLocal(var.var))
         cdef SCIP_COL* col
         cdef SCIP_VAR* t_var = SCIPvarGetTransVar(var.var)
         cdef SCIP_ROW** rows
