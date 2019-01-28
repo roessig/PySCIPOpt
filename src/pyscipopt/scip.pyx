@@ -3013,6 +3013,7 @@ cdef class Model:
         """adds a row to the LP in current dive"""
         PY_SCIP_CALL(SCIPaddRowDive(self._scip, row.row))
 
+
     def solveDiveLP(self, itlim = -1):
         """solves the LP of the current dive no separation or pricing is applied
         no separation or pricing is applied
@@ -3037,8 +3038,8 @@ cdef class Model:
 
 
     def relaxAllConssDive(self):
-        """In diving mode, set the bounds to infinity for all constraints. Must only be called when SCIP is in
-        diving mode.
+        """In diving mode, set the bounds to infinity for all constraints. Effectively, this removes all
+        constraints from the problem. Must only be called when SCIP is in diving mode.
 
         """
         cdef SCIP_ROW** rows
@@ -3057,7 +3058,6 @@ cdef class Model:
 
         for i in range(nrows):
             if SCIProwIsInLP(rows[i]):
-                #print("relax Row", SCIProwGetName(rows[i]))
                 self.lhs[SCIProwGetIndex(rows[i])] = SCIProwGetLhs(rows[i])
                 self.rhs[SCIProwGetIndex(rows[i])] = SCIProwGetRhs(rows[i])
                 SCIPchgRowLhsDive(self._scip, rows[i], -SCIPinfinity(self._scip))
@@ -3068,7 +3068,9 @@ cdef class Model:
 
 
     def fixAllVariablesToZeroDive(self):
-        """Fixes all (transformed) variables to zero in diving mode. Must only be called when SCIP is in diving mode."""
+        """Fixes all (transformed) variables to zero in diving mode. Must only be called when SCIP is in diving mode.
+
+        """
         cdef SCIP_VAR** _vars = SCIPgetVars(self._scip)
         cdef int _nvars = SCIPgetNVars(self._scip)
         cdef int i
@@ -3086,6 +3088,13 @@ cdef class Model:
 
 
     def enableVarAndConssDive(self, Variable var):
+        """ Enable a variable, that has not been after the execution of relaxAllConssDive and
+        fixAllVariablesToZeroDive. Resets the bounds of the variable and all constraints, in which the
+        variable appears.
+
+        :param var: scip variable in the model, that shall be enabled
+
+        """"
 
         PY_SCIP_CALL(SCIPchgVarLbDive(self._scip, var.var, SCIPvarGetLbLocal(var.var)))
         PY_SCIP_CALL(SCIPchgVarUbDive(self._scip, var.var, SCIPvarGetUbLocal(var.var)))
@@ -3102,13 +3111,10 @@ cdef class Model:
         rows = SCIPcolGetRows(col)
         for i in range(SCIPcolGetNNonz(col)):
             if not SCIProwIsInLP(rows[i]):
-                #print("not in LP")
                 continue
             use_row = 1
             cols_of_row = SCIProwGetCols(rows[i])
-            #print("row", SCIProwGetName(rows[i]))
             for j in range(SCIProwGetNNonz(rows[i])):
-                #print(SCIPvarGetIndex(SCIPcolGetVar(cols_of_row[j])), SCIPvarGetName(SCIPcolGetVar(cols_of_row[j])), self.vars_activated[SCIPvarGetIndex(SCIPcolGetVar(cols_of_row[j]))])
                 if self.vars_activated[SCIPvarGetIndex(SCIPcolGetVar(cols_of_row[j]))] == False:
                     use_row = 0
                     break
@@ -3120,11 +3126,20 @@ cdef class Model:
 
 
     def freeRowsSidesArrays(self):
+        """Free the arrays which are used to perform variable / constraint relaxation and enabling."""
+
         free(self.lhs)
         free(self.rhs)
         free(self.vars_activated)
 
     cdef includeVarGenVBound(self, SCIP_VAR* var):
+        """Cython function. Should a generalized variable bound be included for this variable?
+
+         :param var: SCIP_VAR*
+         :return bool: yes / no
+
+         """
+
         cdef SCIP_Real redcost
         if SCIPvarGetStatus(var) != SCIP_VARSTATUS_COLUMN:
            return False
@@ -3139,13 +3154,16 @@ cdef class Model:
         return True
 
     def createGenVBound(self, Variable var, prop_name, Row cutoffrow, is_lowerbound):
-        """
-        :param var:
+        """ Add a generalized variable bound as proposed by Gleixner et al. to the model. This function is very
+        similar to the corresponding function in SCIP's OBBT propagator.
+
+        :param var: scip variable
+        :param prop_name: str, name of the propagator for propagation of gen. variable bounds
+        :param cutoffrow: scip row, that cuts off the objective function
         :param is_lowerbound: bool, True if the lower bound should be added, False for upper bound
-        :return:
+
         """
 
-        print("in Function createGenVBound", var.name, "is lower bound", is_lowerbound)
         cdef SCIP_VAR** vars
         cdef SCIP_VAR** genvboundvars
         cdef SCIP_Real* genvboundcoefs
@@ -3189,9 +3207,7 @@ cdef class Model:
                 genvboundcoefs = <SCIP_Real*> malloc(ncoefs * sizeof(SCIP_Real))
 
                 c = SCIPgetLPObjval(self._scip)
-                #print("c start", c)
                 c += SCIPgetCutoffbound(self._scip) * gamma_dual
-                print(SCIPgetCutoffbound(self._scip) , gamma_dual)
 
                 idx = 0
                 for k in range(nvars):
@@ -3204,39 +3220,23 @@ cdef class Model:
                             addgenvbound = False
                             break
 
-                        # store coefficients */
+                        # store coefficients
                         assert(idx < ncoefs), "idx " + str(idx) + ", ncoefs" + str(ncoefs)
                         genvboundvars[idx] = xk
                         genvboundcoefs[idx] = redcost
                         idx += 1
-                        #print(SCIPvarGetName(xk), redcost, var.name)
 
                         # if redcost > 0, then redcost = alpha_k, otherwise redcost = - beta_k */
                         assert redcost <= 0 or not SCIPisInfinity(self._scip, -SCIPvarGetLbLocal(xk))
                         assert redcost >= 0 or not SCIPisInfinity(self._scip, SCIPvarGetUbLocal(xk))
                         c -= redcost * SCIPvarGetLbLocal(xk) if redcost > 0 else redcost * SCIPvarGetUbLocal(xk)
-                        #print(c, redcost, var.name)
 
 
                 if addgenvbound and not SCIPisInfinity(self._scip, -c):
-                    print("add genvbound for ", var.name, c, gamma_dual, is_lowerbound, SCIPvarGetLbLocal(var.var), SCIPvarGetUbLocal(var.var))
                     SCIPgenVBoundAdd(self._scip, SCIPfindProp(self._scip, str_conversion(prop_name)),
                                      genvboundvars, var.var, genvboundcoefs, ncoefs,
                        0.0 if not SCIPisPositive(self._scip, gamma_dual) else -gamma_dual, c,
                                             SCIP_BOUNDTYPE_LOWER if is_lowerbound else SCIP_BOUNDTYPE_UPPER)
-
-                    """c1 = c
-                    c2 = c
-                    for k in range(ncoefs):
-                        #print(SCIPvarGetName(genvboundvars[k]), SCIPvarGetLbLocal(genvboundvars[k]), SCIPvarGetUbLocal(genvboundvars[k]))
-                        if genvboundcoefs[k] > 0:
-                            c1 += genvboundcoefs[k] * SCIPvarGetLbLocal(genvboundvars[k])
-                            c2 += genvboundcoefs[k] * SCIPvarGetUbLocal(genvboundvars[k])
-                        else:
-                            c1 += genvboundcoefs[k] * SCIPvarGetUbLocal(genvboundvars[k])
-                            c2 += genvboundcoefs[k] * SCIPvarGetLbLocal(genvboundvars[k])
-                    #print()
-                    #print("current c", c1, c2)"""
 
                 free(genvboundcoefs)
                 free(genvboundvars)
