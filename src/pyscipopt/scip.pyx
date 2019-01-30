@@ -3365,6 +3365,12 @@ cdef class Model:
             cfile = fdopen(f.fileno(), "w")
             PY_SCIP_CALL(SCIPprintSol(self._scip, solution.sol, cfile, write_zeros))
 
+    def writeLP(self, filename):
+        """write lp to file
+
+        """
+        PY_SCIP_CALL(SCIPwriteLP(self._scip, str_conversion(filename)))
+
     # perhaps this should not be included as it implements duplicated functionality
     #   (as does it's namesake in SCIP)
     def readSol(self, filename):
